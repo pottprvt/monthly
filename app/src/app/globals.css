@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #fafaf9;
+  --fg: #171717;
+  --muted: #6b6b6b;
+  --panel: #ffffff;
+  --panel-strong: #f0efed;
+  --line: #e4e2df;
+  --accent: #5b4bff;
+  --accent-strong: #4839e6;
+  --ok: #1a8f4e;
+  --warn: #b7791f;
+  --danger: #c53030;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e0e10;
+    --fg: #ededed;
+    --muted: #9a9a9a;
+    --panel: #161618;
+    --panel-strong: #202024;
+    --line: #2a2a2e;
+    --accent: #7c6dff;
+    --accent-strong: #9385ff;
+    --ok: #3ccf7a;
+    --warn: #e0a83a;
+    --danger: #f06a6a;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-panel: var(--panel);
+  --color-panel-strong: var(--panel-strong);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+.wallet-adapter-button-trigger {
+  background: var(--accent) !important;
+  border-radius: 0.5rem !important;
+  height: 2.5rem !important;
+  font-size: 0.875rem !important;
+}
