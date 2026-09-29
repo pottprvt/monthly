@@ -3,9 +3,12 @@ import { PublicKey } from "@solana/web3.js";
 export const RPC_URL =
   process.env.NEXT_PUBLIC_RPC_URL ?? "https://api.devnet.solana.com";
 
-/** Circle's devnet USDC. Faucet: https://faucet.circle.com */
+/**
+ * Devnet test USDC (6 decimals). Mint authority is the Monthly faucet wallet, so anyone can get
+ * test funds from the app without an external faucet.
+ */
 export const USDC_MINT = new PublicKey(
-  "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+  process.env.NEXT_PUBLIC_USDC_MINT ?? "FbLav7StPpMyLdSBDhrsDNJQ3XbimxW5isbUY5CtWVFw",
 );
 export const USDC_DECIMALS = 6;
 

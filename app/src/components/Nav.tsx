@@ -4,6 +4,8 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { FaucetButton } from "./FaucetButton";
+
 const WalletMultiButton = dynamic(
   async () => (await import("@solana/wallet-adapter-react-ui")).WalletMultiButton,
   { ssr: false },
@@ -36,6 +38,7 @@ export function Nav() {
         <span className="ml-auto rounded-full border border-line px-2 py-0.5 text-xs text-muted">
           devnet
         </span>
+        <FaucetButton />
         <WalletMultiButton />
       </div>
     </header>

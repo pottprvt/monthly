@@ -48,14 +48,9 @@ export default function Home() {
       <Card>
         <h2 className="mb-2 font-medium">Try it on devnet</h2>
         <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
-          <li>Switch your wallet to devnet and get SOL from{" "}
-            <a className="text-accent underline" href="https://faucet.solana.com" target="_blank" rel="noreferrer">faucet.solana.com</a>.
-          </li>
-          <li>Get devnet USDC from{" "}
-            <a className="text-accent underline" href="https://faucet.circle.com" target="_blank" rel="noreferrer">faucet.circle.com</a>{" "}
-            (select Solana Devnet).
-          </li>
-          <li>Create a plan with a one-minute interval, open its link in a second wallet, subscribe, and watch the charges arrive.</li>
+          <li>Switch your wallet (Phantom, Solflare, Backpack) to devnet and connect it.</li>
+          <li>Click <span className="text-fg">Get test funds</span> at the top: 100 test USDC, plus devnet SOL for fees if your wallet is empty.</li>
+          <li>Create a plan with a one-minute interval, open its link with a second wallet, subscribe, and watch the charges arrive.</li>
         </ol>
       </Card>
     </div>
