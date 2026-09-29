@@ -2,7 +2,7 @@
  * End-to-end run against devnet with fresh wallets: plan -> subscribe -> wait -> charge -> cancel -> close.
  * Usage: FAUCET_KEYPAIR="$(cat ~/.config/solana/monthly-faucet.json)" npx tsx scripts/e2e.ts
  */
-import { BN, Wallet } from "@coral-xyz/anchor";
+import { Wallet } from "@coral-xyz/anchor";
 import {
   createAssociatedTokenAccountIdempotentInstruction,
   createMintToInstruction,
@@ -18,7 +18,8 @@ import {
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
 
-import { RPC_URL, USDC_MINT, explorerTx, formatUsdc } from "../src/lib/config";
+import { RPC_URL, USDC_MINT, explorerTx } from "../src/lib/config";
+import { formatUsdc } from "../src/lib/format";
 import {
   cancelIx,
   chargeIx,
@@ -29,7 +30,7 @@ import {
   subscriptionPda,
   usdcAta,
   walletProgram,
-} from "../src/lib/monthly";
+} from "../src/lib/chain";
 
 const connection = new Connection(RPC_URL, "confirmed");
 const faucet = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(process.env.FAUCET_KEYPAIR!)));
@@ -79,12 +80,12 @@ async function main() {
 
   const mProgram = walletProgram(connection, new Wallet(merchant));
   const sProgram = walletProgram(connection, new Wallet(subscriber));
-  const planId = new BN(Date.now());
+  const planId = 1;
   const plan = planPda(merchant.publicKey, planId);
 
   await send(
     "create plan",
-    [await createPlanIx(mProgram, merchant.publicKey, planId, "E2E plan", "preset:🧪:#3ccf7a", new BN(AMOUNT.toString()), new BN(INTERVAL))],
+    [await createPlanIx(mProgram, merchant.publicKey, planId, { name: "E2E plan", image: "preset:🧪:#16a34a", amount: AMOUNT }, INTERVAL)],
     [merchant],
   );
   const planAccount = await mProgram.account.plan.fetch(plan);

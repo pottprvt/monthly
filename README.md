@@ -115,11 +115,31 @@ Scripts (`app/scripts`):
 - `e2e.ts`: end-to-end run against devnet with fresh wallets.
 - `create-test-mint.ts`: one-off creation of the test USDC mint.
 
+## Web app
+
+| Route | For | What |
+|---|---|---|
+| `/` | everyone | Product page |
+| `/create` | creators | Guided setup: plan (with live preview) → community → share link |
+| `/dashboard` | creators | Overview, setup checklist, payments due, recent members |
+| `/dashboard/plans`, `/dashboard/plans/[plan]` | creators | Plans, checkout link, community connections, members, edit/close |
+| `/dashboard/members` | creators | All members with status filter |
+| `/p/[plan]` | members | Checkout in three steps: connect wallet → approve and pay → join community |
+| `/subscriptions` | members | Own subscriptions, price approvals, resume, cancel, spending limit |
+
+Community access (Telegram, Discord) is prepared as a provider registry (`app/src/integrations`, `GET /api/integrations`); the bot flows and security rules are specified in [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
+
 ## Repository layout
 
 ```
 programs/monthly/src/          program: state.rs, error.rs, instructions/*
 programs/monthly/tests/        LiteSVM tests covering every instruction, the price rule and failure paths
-app/                           Next.js web app, API routes (Blink, test funds), scripts
+app/src/app/                   routes (site, create, dashboard) and API routes (Blink, test funds, upload, integrations)
+app/src/components/            ui (shadcn/ui), plan, checkout, dashboard, wallet, marketing
+app/src/hooks/                 data hooks per view, polling with retry, transactions with toasts
+app/src/lib/chain/             program client: accounts, PDAs, instructions, pricing rules
+app/src/integrations/          community provider registry (Telegram, Discord)
+app/scripts/                   charge job, devnet e2e run, test mint setup
+docs/INTEGRATIONS.md           architecture for the Telegram and Discord bots
 scripts/build.sh               build helper
 ```
