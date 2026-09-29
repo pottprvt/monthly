@@ -1,145 +1,167 @@
-# Monthly — recurring payments on Solana
+# Monthly — paid communities on Solana
 
-Solana has no direct debit. Every subscription today is either a credit card (Stripe, 3 % fee, no wallet users) or a merchant chasing people by hand each month. Monthly fixes that with the token program's own delegate feature: the subscriber approves a program-owned authority once (the mandate), and from then on the program pulls the plan amount when it is due. Nothing is prepaid, nothing sits in a vault, the money stays in the subscriber's wallet until the day it is due.
+Get paid every month for your Telegram group. Members pay in USDC on Solana, payments are collected on schedule, and the Monthly bot lets paying members in and removes them when they stop paying.
+
+Solana has no direct debit. Paid communities today run on credit cards (3 % fees, chargebacks, no wallet users) or on creators chasing members by hand. Monthly uses the token program's own delegate feature: a member approves a spending limit once, and from then on the Monthly program pulls the plan price when it is due. Nothing is prepaid; the money stays in the member's wallet until the day it is due.
 
 Built for the Superteam Germany "Road to Colosseum: Build your MVP" bounty and the Colosseum Crypto World's Fair hackathon (September–October 2026).
 
+## Try it
+
+Live app (Solana devnet): **https://monthly-sol.vercel.app** · Telegram bot: **[@monthlysolbot](https://t.me/monthlysolbot)**
+
+Set Phantom, Solflare or Backpack to devnet. Test funds come from the app itself (wallet menu → **Get test funds**: 100 test USDC, plus devnet SOL for fees if the wallet is empty).
+
+**As a member**
+1. Open the [demo plan](https://monthly-sol.vercel.app/p/2SkdzDedm7py8Y9PvBGwJ9ec3cEyuiXbc2vpubihbeQQ) (1 test USDC per minute) and subscribe: one signature sets the spending limit and pays the first period.
+2. Keep **My subscriptions** open and watch a payment go through every minute.
+3. Cancel any time, or revoke the spending limit in any wallet.
+
+**As a creator**
+1. **Create your plan** (`/create`): image, name, price, interval, with a live preview.
+2. **Connect Telegram**: sign a short message, add the bot to your group, confirm its rights. The dashboard switches to "Connected".
+3. Share the checkout link. Members subscribe, tap **Join on Telegram**, and the bot approves their join request. Cancelled or paused members are removed.
+
 ## How it works
 
-1. **Merchant creates a plan**: name, amount, interval. The plan stores the merchant's token account, so charges can only ever land there.
-2. **Subscriber subscribes**: one transaction that (a) approves the Monthly authority as delegate on the subscriber's USDC account for a chosen allowance, e.g. twelve periods, and (b) creates the subscription and collects the first period.
-3. **Charges**: once the interval has passed, anyone may call `charge`. The program checks the mandate and the balance and moves exactly the plan amount to the merchant. A charge that cannot be covered is retried during a three-day grace period, then the subscription is paused.
-4. **Subscriber stays in control**: cancel at any time (account closed, rent returned), revoke the delegate in any wallet, resume a paused subscription once funds are back.
-5. **Merchant edits a plan**: name, image and price can change; the billing interval cannot.
-6. **Merchant closes a plan**: no new subscriptions, no further charges.
+### Payments (on-chain)
+
+1. **Creator creates a plan**: name, image, price, interval. The plan stores the creator's token account, so charges can only land there.
+2. **Member subscribes**: one transaction that approves the Monthly authority as delegate on the member's USDC account for a chosen limit (e.g. 12 payments) and collects the first period.
+3. **Charges**: once a period has passed, anyone may call `charge`; the program checks the limit and balance and moves exactly the price to the creator. A charge that cannot be covered is retried during a three-day grace period, then the subscription pauses.
+4. **Member stays in control**: cancel any time (account closed, rent returned), revoke the delegate in any wallet, resume a paused subscription once funds are back.
+
+Collection is triggered by the app whenever a payment is due while someone has it open (`POST /api/collect`), and by a scheduled job every five minutes (`POST /api/cron/charge`, called from a GitHub Action). Both only pay the transaction fee; the program decides what moves.
 
 ### Price rule
 
-Every subscription stores the price the subscriber signed for. A charge always takes the lower of that agreed price and the plan's current price:
+Every subscription stores the price the member signed for. A charge always takes the lower of that agreed price and the plan's current price:
 
-- **Price cut**: applies to every subscriber at the next charge, automatically.
-- **Price increase**: applies to new subscribers only. Existing subscribers keep paying their agreed price until they sign `accept_price`.
+- **Price cut**: applies to every member at the next payment, automatically.
+- **Price increase**: applies to new members only. Existing members keep their price until they sign `accept_price`.
 
-A merchant therefore cannot raise what an existing subscriber pays, and the interval is immutable because a shorter interval would be a hidden increase.
+The billing interval is immutable, because a shorter interval would be a hidden price increase.
 
 What the program guarantees regardless of any website:
 
-- Only min(agreed price, current price), only when due, only to the plan's merchant account.
-- No price increase without the subscriber's signature.
-- Only the subscriber can cancel or resume; only the merchant can close a plan.
-- The allowance is a hard ceiling set by the subscriber and decreases with every charge.
+- Only min(agreed price, current price), only once per period, only to the plan's creator account.
+- No price increase without the member's signature; the spending limit is a hard ceiling.
+- Only the member can cancel or resume; only the creator can edit or close a plan.
 
-## Try it
+### Community access (Telegram)
 
-Live app (devnet): **https://monthly-sol.vercel.app**
+1. **Wallet proof**: the member (or creator) signs a sign-in message with a server nonce; the server verifies the ed25519 signature and issues an HttpOnly session. Wallet addresses from requests are never trusted without it.
+2. **Creator connects a group**: the server checks on-chain that the signed-in wallet owns the plan and returns a one-time `t.me/monthlysolbot?startgroup=<code>` link that requests only "invite users" and "ban users". The bot verifies the adder is a group admin and that it has these rights, then creates the plan's join-request link.
+3. **Member links Telegram**: the server checks on-chain that the signed-in wallet has an active subscription and returns a one-time `t.me/monthlysolbot?start=<code>` link. The bot binds that Telegram account to the wallet and sends the join-request link.
+4. **Join requests** are approved only for Telegram accounts linked to a wallet with an active subscription to that exact plan; everyone else is declined. A forwarded link is useless.
+5. **Access follows payment**: on cancel, pause or plan close the member is removed (ban and immediate unban, so they can rejoin later) and notified; on resume they get the link again. The sync runs right after member actions and in the scheduled job.
 
-1. Switch Phantom, Solflare or Backpack to devnet and connect.
-2. Click **Get test funds**: 100 test USDC, plus 0.05 devnet SOL for fees if the wallet is empty. No external faucet needed.
-3. Subscribe to the [demo plan](https://monthly-sol.vercel.app/p/2SkdzDedm7py8Y9PvBGwJ9ec3cEyuiXbc2vpubihbeQQ) (1 test USDC every minute), or create your own plan under **Merchant** and subscribe with a second wallet.
-4. Watch the charges arrive under **Merchant** or **My subscriptions**; cancel or revoke the mandate any time.
+Discord is prepared in the provider registry and specified in [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
 
 ## Devnet addresses
 
 | What | Address |
 |---|---|
 | Program | [`6F6a5BMjLyy7rXRcgZf9vwSqsVxJ34d1Xvov4gBsMhcQ`](https://explorer.solana.com/address/6F6a5BMjLyy7rXRcgZf9vwSqsVxJ34d1Xvov4gBsMhcQ?cluster=devnet) |
-| Mandate authority (PDA `["authority"]`) | derived, see `app/src/lib/monthly.ts` |
+| Spending-limit authority | PDA `["authority"]` of the program |
 | Test USDC mint (6 decimals) | [`FbLav7StPpMyLdSBDhrsDNJQ3XbimxW5isbUY5CtWVFw`](https://explorer.solana.com/address/FbLav7StPpMyLdSBDhrsDNJQ3XbimxW5isbUY5CtWVFw?cluster=devnet) |
 | Demo plan | [`2SkdzDedm7py8Y9PvBGwJ9ec3cEyuiXbc2vpubihbeQQ`](https://explorer.solana.com/address/2SkdzDedm7py8Y9PvBGwJ9ec3cEyuiXbc2vpubihbeQQ?cluster=devnet) |
+| Telegram bot | [@monthlysolbot](https://t.me/monthlysolbot) |
 
-Example transactions from the end-to-end run (`app/scripts/e2e.ts`):
+Example transactions from the devnet end-to-end run (`app/scripts/e2e.ts`):
 
 | Step | Transaction |
 |---|---|
 | create plan | [3ZF3196m…](https://explorer.solana.com/tx/3ZF3196mgPX3MLMkGvCZgQnt8rWB3gP3AcsKcUvCZDXYkkAPcPwij9UVx33YSDoBQFGErhW96uzxcVfsAnrUJhpB?cluster=devnet) |
-| approve mandate + subscribe | [54D19pnC…](https://explorer.solana.com/tx/54D19pnCY6VWM8Q663L5w64yT5wxNVCqLH5Wx7Cn9wLuzMQmdAx3BFR7SDVXDLTdAwUQumQM6mPLMXqNCpfmX9Ld?cluster=devnet) |
+| approve spending limit + subscribe | [54D19pnC…](https://explorer.solana.com/tx/54D19pnCY6VWM8Q663L5w64yT5wxNVCqLH5Wx7Cn9wLuzMQmdAx3BFR7SDVXDLTdAwUQumQM6mPLMXqNCpfmX9Ld?cluster=devnet) |
 | charge when due | [3FqXGk6W…](https://explorer.solana.com/tx/3FqXGk6W7c9ABVECqq1sKG2Ut9a3MDpqkcqDKh4Y33BeTnpn2DPdGKbcTvfmbh7466fhPsS15EHPskA8LLq1ou2J?cluster=devnet) |
 | cancel | [GS864hKE…](https://explorer.solana.com/tx/GS864hKE3qpT3UxTi9PQD6mJ9rZGhAK6qv9eaefNxiMiTjXFJTU7kYSNjhDNJ4iTiSrRNfxCxF6yGwcAFE9HC2g?cluster=devnet) |
 
 ## Program
 
-Anchor 1.2, deployed on Devnet: `6F6a5BMjLyy7rXRcgZf9vwSqsVxJ34d1Xvov4gBsMhcQ`
+Anchor 1.2 (`programs/monthly`), 12 LiteSVM integration tests.
 
 | Instruction | Signer | Effect |
 |---|---|---|
-| `create_plan(plan_id, name, image, amount, interval_seconds)` | merchant | creates the `Plan` PDA `["plan", merchant, plan_id]` |
-| `update_plan(name, image, amount)` | merchant | edits the listing; cuts apply to all, increases only to new or accepting subscribers |
-| `accept_price()` | subscriber | agrees to the plan's current, higher price |
-| `subscribe()` | subscriber | creates `Subscription` PDA `["subscription", plan, subscriber]` with the agreed price, collects period 1 |
-| `charge()` | anyone | collects one period if `now >= next_charge_at`; pauses after grace if blocked |
-| `resume()` | subscriber | reactivates a paused subscription by collecting one period |
-| `cancel()` | subscriber | closes the subscription |
-| `close_plan()` | merchant | deactivates the plan |
+| `create_plan(plan_id, name, image, amount, interval_seconds)` | creator | creates the `Plan` PDA `["plan", creator, plan_id]` |
+| `update_plan(name, image, amount)` | creator | edits the listing; cuts apply to all, increases only to new or accepting members |
+| `close_plan()` | creator | stops new subscriptions and charges |
+| `subscribe()` | member | creates the `Subscription` PDA `["subscription", plan, member]` with the agreed price, collects period 1 |
+| `charge()` | anyone | collects one period if due; pauses after the grace period if blocked |
+| `accept_price()` | member | agrees to the plan's current, higher price |
+| `resume()` | member | reactivates a paused subscription by collecting one period |
+| `cancel()` | member | closes the subscription |
 
-The delegate authority is the PDA `["authority"]`. Subscribers approve it with a normal SPL `approve`; the client builds that instruction into the subscribe transaction.
+## Web app
 
-## Blink
+Next.js 16 (App Router), shadcn/ui, wallet adapter (Wallet Standard), deployed on Vercel.
 
-Plan links work as Solana Actions. `GET /api/actions/subscribe/<plan>` returns the card, `POST` returns the approve + subscribe transaction; `/actions.json` maps `/p/*` to it, so a plan link shared on X renders as a subscribe button in Blink-capable clients.
+| Route | For | What |
+|---|---|---|
+| `/` | everyone | Product page |
+| `/create` | creators | Guided setup: plan with live preview → connect Telegram → share link |
+| `/dashboard`, `/dashboard/plans/[plan]`, `/dashboard/members` | creators | Overview, plan detail with Telegram connection, members with payment and group status |
+| `/p/[plan]` | members | Checkout: connect wallet → approve and pay → join on Telegram |
+| `/subscriptions` | members | Own subscriptions, price approvals, resume, cancel, spending limit |
+
+| API | Purpose |
+|---|---|
+| `POST /api/auth/nonce`, `POST /api/auth/verify`, `GET /api/auth/session` | wallet sign-in |
+| `POST /api/integrations/telegram/{connect,link}` | one-time bot links for creators and members |
+| `GET /api/integrations/telegram/{status,members}` | connection state and per-member access state |
+| `POST /api/integrations/telegram/webhook` | bot updates, authenticated by the webhook secret |
+| `POST /api/access/refresh` | re-check access after cancel, resume or plan close |
+| `POST /api/collect`, `POST /api/cron/charge` | collect due payments (on demand / scheduled) |
+| `POST /api/faucet` | devnet test funds |
+| `GET/POST /api/actions/subscribe/[plan]`, `/actions.json` | Solana Blink for plan links |
+| `POST /api/upload` | plan image upload (Vercel Blob) |
 
 ## Development
 
 Requirements: Rust, Solana CLI (Agave 4.x), Anchor 1.2, Node 22.
 
 ```sh
-scripts/build.sh                      # anchor build with SBPF v0 (see script for why)
-cd programs/monthly && cargo test     # LiteSVM integration tests, no validator needed
-```
+scripts/build.sh                      # anchor build for SBPF v0 (devnet and LiteSVM do not load v3 yet)
+cd programs/monthly && cargo test     # program tests, no validator needed
 
-Deploy to devnet:
-
-```sh
-solana program deploy target/deploy/monthly.so --program-id target/deploy/monthly-keypair.json --url devnet
-```
-
-Web app:
-
-```sh
 cd app
 npm install
-cp .env.example .env.local            # set FAUCET_KEYPAIR for the test-funds button
+cp .env.example .env.local            # fill in the values below
 npm run dev
 ```
 
-Environment variables:
+Environment variables (server side unless noted):
 
-| Variable | Where | Purpose |
-|---|---|---|
-| `FAUCET_KEYPAIR` | server (Vercel), GitHub secret | devnet wallet that is mint authority of the test USDC and pays fees for the test-funds button and the charge job |
-| `NEXT_PUBLIC_RPC_URL` | optional | devnet RPC, defaults to `https://api.devnet.solana.com` |
-| `NEXT_PUBLIC_USDC_MINT` | optional | token mint, defaults to the test USDC above |
+| Variable | Purpose |
+|---|---|
+| `FAUCET_KEYPAIR` | devnet wallet (JSON secret key): mint authority of the test USDC, pays fees for test funds and collection |
+| `SESSION_SECRET` | HMAC key for sign-in sessions; also derives the scheduler token |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` | Telegram bot |
+| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Upstash Redis (set automatically by the Vercel Marketplace integration) |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob for image uploads (set automatically when a Blob store is connected) |
+| `NEXT_PUBLIC_RPC_URL` | optional, client and server; defaults to `https://api.devnet.solana.com` |
 
-Scripts (`app/scripts`):
+Telegram is inactive until the bot variables and Redis are present. After deploying, register the webhook once:
 
-- `charge.ts`: collects every due subscription; run by a GitHub Action every 10 minutes.
-- `e2e.ts`: end-to-end run against devnet with fresh wallets.
-- `create-test-mint.ts`: one-off creation of the test USDC mint.
+```sh
+cd app && set -a && . ./.env.local && set +a
+npx tsx scripts/telegram-webhook.ts https://monthly-sol.vercel.app
+```
 
-## Web app
+The scheduled job (`.github/workflows/charge.yml`) needs one repository secret, `CRON_TOKEN` = HMAC-SHA256 of `monthly-cron` with `SESSION_SECRET` (hex).
 
-| Route | For | What |
-|---|---|---|
-| `/` | everyone | Product page |
-| `/create` | creators | Guided setup: plan (with live preview) → community → share link |
-| `/dashboard` | creators | Overview, setup checklist, payments due, recent members |
-| `/dashboard/plans`, `/dashboard/plans/[plan]` | creators | Plans, checkout link, community connections, members, edit/close |
-| `/dashboard/members` | creators | All members with status filter |
-| `/p/[plan]` | members | Checkout in three steps: connect wallet → approve and pay → join community |
-| `/subscriptions` | members | Own subscriptions, price approvals, resume, cancel, spending limit |
-
-Community access (Telegram, Discord) is prepared as a provider registry (`app/src/integrations`, `GET /api/integrations`); the bot flows and security rules are specified in [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
+Scripts (`app/scripts`): `e2e.ts` runs a full plan → subscribe → charge → cancel cycle on devnet; `telegram-webhook.ts` registers the bot webhook; `create-test-mint.ts` created the test USDC mint.
 
 ## Repository layout
 
 ```
-programs/monthly/src/          program: state.rs, error.rs, instructions/*
-programs/monthly/tests/        LiteSVM tests covering every instruction, the price rule and failure paths
-app/src/app/                   routes (site, create, dashboard) and API routes (Blink, test funds, upload, integrations)
+programs/monthly/src/          program: state, errors, instructions
+programs/monthly/tests/        LiteSVM tests for every instruction, the price rule and failure paths
+app/src/app/                   pages (site, create, dashboard) and API routes
 app/src/components/            ui (shadcn/ui), plan, checkout, dashboard, wallet, marketing
-app/src/hooks/                 data hooks per view, polling with retry, transactions with toasts
+app/src/hooks/                 data hooks per view, polling with retry, live clock, transactions
 app/src/lib/chain/             program client: accounts, PDAs, instructions, pricing rules
-app/src/integrations/          community provider registry (Telegram, Discord)
-app/scripts/                   charge job, devnet e2e run, test mint setup
-docs/INTEGRATIONS.md           architecture for the Telegram and Discord bots
-scripts/build.sh               build helper
+app/src/integrations/          provider registry; Telegram Bot API client and bot logic
+app/src/server/                store (Redis), wallet sign-in, payment collection, access sync
+docs/INTEGRATIONS.md           design and security rules for community integrations
 ```
