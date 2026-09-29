@@ -23,7 +23,6 @@ export type MemberData = {
   memberships: Membership[];
   balance: bigint | null;
   limitLeft: bigint;
-  now: number;
 };
 
 /** The connected wallet's subscriptions with their plans, balance and remaining spending limit. */
@@ -36,7 +35,6 @@ export function useMemberData(): MemberData {
     memberships: [],
     balance: null,
     limitLeft: 0n,
-    now: 0,
   });
 
   const load = useCallback(async () => {
@@ -56,7 +54,6 @@ export function useMemberData(): MemberData {
       memberships,
       balance: usdc ? usdc.amount : null,
       limitLeft: spendingLimitLeft(usdc),
-      now: Math.floor(Date.now() / 1000),
     });
   }, [program, publicKey, connection]);
 

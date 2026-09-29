@@ -16,7 +16,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WalletButton } from "@/components/wallet/wallet-button";
+import { useAutoCollect } from "@/hooks/use-auto-collect";
 import { useCheckoutData } from "@/hooks/use-checkout-data";
+import { useNow } from "@/hooks/use-now";
 import { effectivePrice, memberStatus, pendingIncrease } from "@/lib/chain";
 import { formatDateTime, formatUsdc, perInterval, shortAddress, timeUntil } from "@/lib/format";
 
@@ -30,7 +32,10 @@ export default function CheckoutPage() {
     }
   }, [param]);
   const { publicKey } = useWallet();
-  const { plan, sub, balance, limitLeft, now, failing } = useCheckoutData(planKey);
+  const { plan, sub, balance, limitLeft, failing } = useCheckoutData(planKey);
+  const now = useNow();
+  const due = !!plan?.active && !!sub && memberStatus(sub, now) === "due";
+  useAutoCollect(publicKey && planKey ? { plan: planKey.toBase58(), subscriber: publicKey.toBase58() } : null, due);
 
   if (!planKey || plan === null) {
     return (

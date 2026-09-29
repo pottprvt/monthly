@@ -16,10 +16,12 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConnectGate } from "@/components/wallet/connect-gate";
+import { useAutoCollect } from "@/hooks/use-auto-collect";
 import { useCreatorData } from "@/hooks/use-creator-data";
+import { useNow } from "@/hooks/use-now";
 import { useProgram } from "@/hooks/use-program";
 import { useTx } from "@/hooks/use-tx";
-import { closePlanIx } from "@/lib/chain";
+import { closePlanIx, memberStatus } from "@/lib/chain";
 import { formatUsdc, perInterval } from "@/lib/format";
 
 export default function PlanDetailPage() {
@@ -47,10 +49,13 @@ function PlanDetail() {
   const { publicKey } = useWallet();
   const program = useProgram();
   const { busy, run } = useTx();
-  const { loaded, failing, plans, subs, now } = useCreatorData();
+  const { loaded, failing, plans, subs } = useCreatorData();
+  const now = useNow();
+  const plan = plans.find((p) => p.publicKey.toBase58() === param);
+  const due = !!plan?.account.active && subs.some((s) => s.account.plan.toBase58() === param && memberStatus(s.account, now) === "due");
+  useAutoCollect(plan ? { plan: param } : null, due);
 
   if (!loaded) return <Skeleton className="h-96 rounded-xl" />;
-  const plan = plans.find((p) => p.publicKey.toBase58() === param);
   if (!plan) {
     return (
       <Empty className="border">

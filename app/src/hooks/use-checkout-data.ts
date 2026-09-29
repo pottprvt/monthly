@@ -23,7 +23,6 @@ export type CheckoutData = {
   sub: SubscriptionAccount | null;
   balance: bigint | null;
   limitLeft: bigint;
-  now: number;
   failing: boolean;
 };
 
@@ -36,22 +35,20 @@ export function useCheckoutData(planKey: PublicKey | null): CheckoutData {
     sub: null,
     balance: null,
     limitLeft: 0n,
-    now: 0,
   });
 
   const load = useCallback(async () => {
     if (!planKey) return;
     const plan = await fetchPlan(program, planKey);
-    const now = Math.floor(Date.now() / 1000);
     if (!publicKey || !plan) {
-      setState({ plan, sub: null, balance: null, limitLeft: 0n, now });
+      setState({ plan, sub: null, balance: null, limitLeft: 0n });
       return;
     }
     const [sub, usdc] = await Promise.all([
       fetchSubscription(program, subscriptionPda(planKey, publicKey)),
       fetchUsdcAccount(connection, publicKey),
     ]);
-    setState({ plan, sub, balance: usdc ? usdc.amount : null, limitLeft: spendingLimitLeft(usdc), now });
+    setState({ plan, sub, balance: usdc ? usdc.amount : null, limitLeft: spendingLimitLeft(usdc) });
   }, [planKey, program, publicKey, connection]);
 
   const failing = usePoll(load, 10_000);
