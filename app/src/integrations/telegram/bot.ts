@@ -10,6 +10,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { fetchPlan, fetchSubscription, isPaused, readProgram, subscriptionPda } from "@/lib/chain";
 import { RPC_URL } from "@/lib/config";
 import {
+  connectionIsCurrent,
   firstSeen,
   getTelegramConnection,
   linkTelegramAccount,
@@ -37,14 +38,17 @@ async function getBotId(): Promise<number> {
   return botId;
 }
 
+/** Active subscription to the plan that this group is currently connected to. */
 async function activeSubscriber(plan: string, wallet: string): Promise<boolean> {
   const p = program();
   const planKey = new PublicKey(plan);
-  const [planAccount, sub] = await Promise.all([
+  const [planAccount, sub, conn] = await Promise.all([
     fetchPlan(p, planKey),
     fetchSubscription(p, subscriptionPda(planKey, new PublicKey(wallet))),
+    getTelegramConnection(plan),
   ]);
-  return !!planAccount?.active && !!sub && !isPaused(sub);
+  if (!planAccount?.active || !conn || !connectionIsCurrent(conn, planAccount.createdAt.toNumber())) return false;
+  return !!sub && !isPaused(sub);
 }
 
 export async function handleUpdate(update: Update, origin: string): Promise<void> {

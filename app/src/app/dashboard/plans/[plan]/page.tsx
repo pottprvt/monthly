@@ -3,7 +3,7 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { ArrowLeftIcon } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 import { SlowBanner } from "@/components/common/slow-banner";
 import { StatusBadge } from "@/components/common/status-badge";
@@ -22,8 +22,8 @@ import { refreshAccess } from "@/hooks/use-telegram";
 import { useNow } from "@/hooks/use-now";
 import { useProgram } from "@/hooks/use-program";
 import { useTx } from "@/hooks/use-tx";
-import { closePlanIx, memberStatus } from "@/lib/chain";
-import { formatUsdc, perInterval } from "@/lib/format";
+import { PLAN_DEPOSIT_LAMPORTS, closePlanIx, deletePlanIx, memberStatus } from "@/lib/chain";
+import { formatSol, formatUsdc, perInterval } from "@/lib/format";
 
 export default function PlanDetailPage() {
   return (
@@ -47,6 +47,7 @@ function Section({ title, description, children }: { title: string; description?
 
 function PlanDetail() {
   const { plan: param } = useParams<{ plan: string }>();
+  const router = useRouter();
   const { publicKey } = useWallet();
   const program = useProgram();
   const { busy, run } = useTx();
@@ -88,27 +89,49 @@ function PlanDetail() {
               {formatUsdc(a.totalCollected)} USDC earned
             </p>
           </div>
-          {a.active && (
-            <div className="flex gap-2">
-              <EditPlanDialog plan={plan} />
+          <div className="flex gap-2">
+            {a.active && <EditPlanDialog plan={plan} />}
+            {a.subscriberCount.isZero() ? (
               <Button
-                variant="outline"
+                variant="destructive"
                 disabled={busy !== null}
                 onClick={() => {
-                  if (!confirm(`Close “${a.name}”? No new members and no further payments.`)) return;
-                  void run("close", async () => [await closePlanIx(program, publicKey!, plan.publicKey)], "Plan closed").then(
-                    (ok) => ok && refreshAccess({ plan: plan.publicKey.toBase58() }),
+                  if (!confirm(`Delete “${a.name}”? Your deposit of ${formatSol(PLAN_DEPOSIT_LAMPORTS)} SOL is returned.`)) return;
+                  void run("delete", async () => [await deletePlanIx(program, publicKey!, plan.publicKey)], "Plan deleted, deposit returned").then(
+                    (ok) => ok && router.push("/dashboard/plans"),
                   );
                 }}
               >
-                Close plan
+                Delete plan
               </Button>
-            </div>
-          )}
+            ) : (
+              a.active && (
+                <Button
+                  variant="outline"
+                  disabled={busy !== null}
+                  onClick={() => {
+                    if (!confirm(`Close “${a.name}”? No new members and no further payments. Members are removed from your community.`)) return;
+                    void run("close", async () => [await closePlanIx(program, publicKey!, plan.publicKey)], "Plan closed").then(
+                      (ok) => ok && refreshAccess({ plan: plan.publicKey.toBase58() }),
+                    );
+                  }}
+                >
+                  Close plan
+                </Button>
+              )
+            )}
+          </div>
         </div>
       </div>
 
       {failing && <SlowBanner />}
+
+      {!a.active && !a.subscriberCount.isZero() && (
+        <p className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
+          This plan is closed. You can delete it and get your {formatSol(PLAN_DEPOSIT_LAMPORTS)} SOL deposit back once all
+          members have cancelled.
+        </p>
+      )}
 
       {a.active && (
         <Section title="Checkout link" description="Share it anywhere. Members subscribe and join from here.">

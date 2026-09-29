@@ -45,6 +45,11 @@ export async function closePlanIx(program: MonthlyProgram, merchant: PublicKey, 
   return program.methods.closePlan().accountsPartial({ merchant, plan }).instruction();
 }
 
+/** Deletes a plan without members and returns its storage deposit to the merchant. */
+export async function deletePlanIx(program: MonthlyProgram, merchant: PublicKey, plan: PublicKey) {
+  return program.methods.deletePlan().accountsPartial({ merchant, plan }).instruction();
+}
+
 /** Sets the spending limit (approve) and subscribes in one transaction. `limit` is the total the program may pull. */
 export async function subscribeIxs(
   program: MonthlyProgram,

@@ -1,5 +1,5 @@
 /**
- * End-to-end run against devnet with fresh wallets: plan -> subscribe -> wait -> charge -> cancel -> close.
+ * End-to-end run against devnet with fresh wallets: plan -> subscribe -> wait -> charge -> cancel -> delete.
  * Usage: FAUCET_KEYPAIR="$(cat ~/.config/solana/monthly-faucet.json)" npx tsx scripts/e2e.ts
  */
 import { Wallet } from "@coral-xyz/anchor";
@@ -23,7 +23,7 @@ import { formatUsdc } from "../src/lib/format";
 import {
   cancelIx,
   chargeIx,
-  closePlanIx,
+  deletePlanIx,
   createPlanIx,
   planPda,
   subscribeIxs,
@@ -117,7 +117,10 @@ async function main() {
   console.log(`periods paid           ${after.periodsPaid.toString()} (expect 2)`);
 
   await send("cancel", [await cancelIx(sProgram, subscriber.publicKey, plan, sub.publicKey)], [subscriber]);
-  await send("close plan", [await closePlanIx(mProgram, merchant.publicKey, plan)], [merchant]);
+  const before = await connection.getBalance(merchant.publicKey);
+  await send("delete plan", [await deletePlanIx(mProgram, merchant.publicKey, plan)], [merchant]);
+  const refunded = (await connection.getBalance(merchant.publicKey)) - before;
+  console.log(`deposit returned       ${refunded / 1e9} SOL (expect ~0.00244)`);
   console.log("E2E OK");
 }
 
