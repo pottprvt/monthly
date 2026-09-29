@@ -38,12 +38,12 @@ pub mod monthly {
         instructions::update_plan::handle_update_plan(ctx, name, image, amount)
     }
 
-    pub fn accept_price(ctx: Context<AcceptPrice>) -> Result<()> {
-        instructions::accept_price::handle_accept_price(ctx)
+    pub fn accept_price(ctx: Context<AcceptPrice>, expected_amount: u64) -> Result<()> {
+        instructions::accept_price::handle_accept_price(ctx, expected_amount)
     }
 
-    pub fn subscribe(ctx: Context<Subscribe>) -> Result<()> {
-        instructions::subscribe::handle_subscribe(ctx)
+    pub fn subscribe(ctx: Context<Subscribe>, expected_amount: u64) -> Result<()> {
+        instructions::subscribe::handle_subscribe(ctx, expected_amount)
     }
 
     pub fn charge(ctx: Context<Charge>) -> Result<()> {

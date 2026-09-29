@@ -37,8 +37,8 @@ pub struct Charge<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-/// Collects one period if due. Inside the grace period a blocked charge errors so the caller retries;
-/// after the grace period it pauses the subscription instead.
+/// Collects one period if due. Inside the grace period (three days, at most one interval) a blocked
+/// charge errors so the caller retries; after it the subscription is paused instead.
 pub fn handle_charge(ctx: Context<Charge>) -> Result<()> {
     let now = Clock::get()?.unix_timestamp;
     let sub = &ctx.accounts.subscription;
@@ -51,7 +51,9 @@ pub fn handle_charge(ctx: Context<Charge>) -> Result<()> {
         &ctx.accounts.authority.key(),
         amount,
     ) {
-        if now > sub.next_charge_at + GRACE_SECONDS {
+        // Grace never exceeds one billing interval, so short plans pause quickly.
+        let grace = GRACE_SECONDS.min(ctx.accounts.plan.interval_seconds);
+        if now > sub.next_charge_at + grace {
             ctx.accounts.subscription.status = SubscriptionStatus::Paused;
             msg!("charge blocked after grace period, subscription paused");
             return Ok(());

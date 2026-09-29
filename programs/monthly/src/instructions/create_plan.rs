@@ -42,6 +42,7 @@ pub fn handle_create_plan(
 ) -> Result<()> {
     validate_listing(&name, &image, amount)?;
     require!(interval_seconds >= MIN_INTERVAL_SECONDS, MonthlyError::IntervalTooShort);
+    require!(interval_seconds <= MAX_INTERVAL_SECONDS, MonthlyError::IntervalTooLong);
 
     let plan = &mut ctx.accounts.plan;
     plan.merchant = ctx.accounts.merchant.key();

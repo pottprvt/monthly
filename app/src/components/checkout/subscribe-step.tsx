@@ -19,12 +19,14 @@ export function SubscribeStep({
   plan,
   subscriber,
   balance,
+  sol,
   limitLeft,
 }: {
   planKey: PublicKey;
   plan: PlanAccount;
   subscriber: PublicKey;
   balance: bigint | null;
+  sol: number;
   limitLeft: bigint;
 }) {
   const program = useProgram();
@@ -35,7 +37,9 @@ export function SubscribeStep({
   const amount = BigInt(plan.amount.toString());
   const per = perInterval(plan.intervalSeconds.toNumber());
   const limit = limitLeft + amount * BigInt(periods);
-  const canPay = balance !== null && balance >= amount;
+  const enoughUsdc = balance !== null && balance >= amount;
+  const enoughSol = sol >= SUBSCRIPTION_DEPOSIT_LAMPORTS + 20_000; // deposit plus fees
+  const canPay = enoughUsdc && enoughSol;
 
   return (
     <div className="space-y-4">
@@ -93,10 +97,14 @@ export function SubscribeStep({
       ) : (
         <div className="space-y-2 rounded-lg bg-muted p-3 text-center text-sm">
           <p className="text-muted-foreground">
-            {balance === null ? "This wallet has no test USDC yet." : `Balance ${formatUsdc(balance)} USDC is too low.`}
+            {!enoughUsdc
+              ? balance === null
+                ? "This wallet has no test USDC yet."
+                : `Balance ${formatUsdc(balance)} USDC is too low.`
+              : "This wallet needs a little devnet SOL for the deposit and fees."}
           </p>
           <Button variant="outline" onClick={() => funds.request()} disabled={funds.busy}>
-            {funds.busy ? "Sending…" : "Get 100 test USDC"}
+            {funds.busy ? "Sending…" : "Get test funds"}
           </Button>
         </div>
       )}

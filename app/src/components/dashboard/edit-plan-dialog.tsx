@@ -20,6 +20,8 @@ export function EditPlanDialog({ plan }: { plan: Plan }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<PlanDraft>(() => draftFromPlan(plan.account));
   const amount = parseUsdc(draft.price);
+  const original = draftFromPlan(plan.account);
+  const changed = draft.name.trim() !== original.name || draft.image !== original.image || amount !== BigInt(plan.account.amount.toString());
 
   async function save() {
     if (!publicKey || amount === null) return;
@@ -58,7 +60,7 @@ export function EditPlanDialog({ plan }: { plan: Plan }) {
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={save} disabled={!isDraftValid(draft) || busy !== null}>
+          <Button onClick={save} disabled={!changed || !isDraftValid(draft) || busy !== null}>
             {busy ? "Confirm in your wallet…" : "Save changes"}
           </Button>
         </div>

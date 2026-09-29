@@ -31,12 +31,17 @@ export function usePoll(load: () => Promise<void>, intervalMs = 20_000): boolean
   const [failing, setFailing] = useState(false);
   useEffect(() => {
     let active = true;
+    let running = false;
     const run = async () => {
+      if (running) return; // a slow earlier load must not overwrite newer data
+      running = true;
       try {
         await withRetry(load);
         if (active) setFailing(false);
       } catch {
         if (active) setFailing(true);
+      } finally {
+        running = false;
       }
     };
     const onVisible = () => {

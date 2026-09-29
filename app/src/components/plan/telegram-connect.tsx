@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2Icon, ExternalLinkIcon, Loader2Icon, TriangleAlertIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -14,6 +14,16 @@ export function TelegramConnect({ plan }: { plan: string }) {
   const [link, setLink] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const status = useTelegramStatus(plan, link !== null);
+
+  // One-time connect codes expire after 10 minutes; offer a fresh link instead of waiting forever.
+  useEffect(() => {
+    if (!link) return;
+    const timer = window.setTimeout(() => {
+      setLink(null);
+      toast.message("The connect link expired. Create a new one.");
+    }, 10 * 60_000);
+    return () => window.clearTimeout(timer);
+  }, [link]);
 
   async function start() {
     setBusy(true);
@@ -39,11 +49,20 @@ export function TelegramConnect({ plan }: { plan: string }) {
 
   if (status.status === "connected") {
     return (
-      <div className="flex items-center gap-2 text-sm">
-        <CheckCircle2Icon className="size-4 text-success" />
-        Connected to <span className="font-medium">{status.title}</span>
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2 text-sm">
+          <CheckCircle2Icon className="size-4 text-success" />
+          Connected to <span className="font-medium">{status.title}</span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Only members who join through Monthly are managed. Revoke other invite links of the group.
+        </p>
       </div>
     );
+  }
+
+  if (status.status === "unavailable") {
+    return <p className="text-sm text-muted-foreground">Telegram status could not be loaded. Reload the page to try again.</p>;
   }
 
   return (

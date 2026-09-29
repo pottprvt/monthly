@@ -14,6 +14,7 @@ export function useTestFunds() {
   async function request() {
     if (!publicKey) return;
     setBusy(true);
+    const pending = toast.loading("Sending test funds…");
     try {
       const res = await fetch("/api/faucet", {
         method: "POST",
@@ -22,10 +23,10 @@ export function useTestFunds() {
       });
       const data = (await res.json()) as { signature?: string; error?: string };
       if (!res.ok || !data.signature) throw new Error(data.error ?? "Request failed");
-      toast.success("100 test USDC sent to your wallet");
+      toast.success("Test funds sent to your wallet", { id: pending });
       requestRefresh();
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error((err as Error).message, { id: pending });
     } finally {
       setBusy(false);
     }

@@ -10,6 +10,7 @@ import {
   chargeIx,
   fetchAllSubscriptions,
   fetchPlans,
+  fetchSubscriptionsByPlan,
   fetchSubscriptionsBySubscriber,
   isPaused,
   readProgram,
@@ -31,11 +32,15 @@ export async function collectDue(
 
   const candidates = scope.subscriber
     ? await fetchSubscriptionsBySubscriber(program, scope.subscriber)
-    : await fetchAllSubscriptions(program);
-  const due = candidates
-    .filter((s) => !scope.plan || s.account.plan.equals(scope.plan))
-    .filter((s) => !isPaused(s.account) && s.account.nextChargeAt.toNumber() <= now)
-    .slice(0, limit);
+    : scope.plan
+      ? await fetchSubscriptionsByPlan(program, scope.plan)
+      : await fetchAllSubscriptions(program);
+  const due = candidates.filter(
+    (s) =>
+      (!scope.plan || s.account.plan.equals(scope.plan)) &&
+      !isPaused(s.account) &&
+      s.account.nextChargeAt.toNumber() <= now,
+  );
   if (due.length === 0) return { due: 0, collected: 0, skipped: [] };
 
   const planKeys = [...new Map(due.map((s) => [s.account.plan.toBase58(), s.account.plan])).values()];
@@ -49,7 +54,11 @@ export async function collectDue(
   });
 
   // One transaction per charge: a blocked subscription (e.g. empty wallet) must not block the others.
-  const collectable = due.filter((s) => plans.has(s.account.plan.toBase58()));
+  // Only active plans in scope, oldest first, then the limit: stuck subscriptions cannot starve others.
+  const collectable = due
+    .filter((s) => plans.has(s.account.plan.toBase58()))
+    .sort((a, b) => a.account.nextChargeAt.cmp(b.account.nextChargeAt))
+    .slice(0, limit);
   const results = await Promise.allSettled(
     collectable.map(async (sub) => {
       const plan = plans.get(sub.account.plan.toBase58())!;

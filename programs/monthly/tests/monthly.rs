@@ -159,7 +159,7 @@ impl World {
     fn subscribe(&mut self) -> Result<(), FailedTransactionMetadata> {
         let ix = Instruction::new_with_bytes(
             self.program_id,
-            &monthly::instruction::Subscribe {}.data(),
+            &monthly::instruction::Subscribe { expected_amount: self.plan_state().amount }.data(),
             monthly::accounts::Subscribe {
                 subscriber: self.subscriber.pubkey(),
                 plan: self.plan,
@@ -250,11 +250,31 @@ impl World {
     fn accept_price(&mut self) -> Result<(), FailedTransactionMetadata> {
         let ix = Instruction::new_with_bytes(
             self.program_id,
-            &monthly::instruction::AcceptPrice {}.data(),
+            &monthly::instruction::AcceptPrice { expected_amount: self.plan_state().amount }.data(),
             monthly::accounts::AcceptPrice {
                 subscriber: self.subscriber.pubkey(),
                 plan: self.plan,
                 subscription: self.subscription,
+            }
+            .to_account_metas(None),
+        );
+        let signer = self.subscriber.insecure_clone();
+        self.send(ix, &signer)
+    }
+
+    fn subscribe_expecting(&mut self, expected_amount: u64) -> Result<(), FailedTransactionMetadata> {
+        let ix = Instruction::new_with_bytes(
+            self.program_id,
+            &monthly::instruction::Subscribe { expected_amount }.data(),
+            monthly::accounts::Subscribe {
+                subscriber: self.subscriber.pubkey(),
+                plan: self.plan,
+                subscription: self.subscription,
+                subscriber_token_account: self.subscriber_ata,
+                merchant_token_account: self.merchant_ata,
+                authority: self.authority,
+                token_program: TOKEN_ID,
+                system_program: system_program::ID,
             }
             .to_account_metas(None),
         );
@@ -575,4 +595,45 @@ fn delete_plan_requires_no_members_and_refunds_deposit() {
     assert!(w.svm.get_account(&w.plan).map_or(true, |a| a.data.is_empty()), "plan account is closed");
     let after = w.svm.get_balance(&merchant.pubkey()).unwrap();
     assert!(after + 10_000 >= before + deposit, "deposit returned minus the transaction fee");
+}
+
+#[test]
+fn price_change_between_signing_and_execution_is_refused() {
+    let mut w = World::new();
+    w.create_plan().unwrap();
+    w.approve(100 * PLAN_AMOUNT);
+    let merchant = w.merchant.insecure_clone();
+    // The subscriber saw PLAN_AMOUNT, the merchant raises the price before the transaction lands.
+    w.update_plan(&merchant, "Trading group", "", PLAN_AMOUNT * 10).unwrap();
+    assert_error(w.subscribe_expecting(PLAN_AMOUNT), MonthlyError::PriceChanged);
+    assert_eq!(w.balance(&w.merchant_ata), 0);
+}
+
+#[test]
+fn interval_bounds_are_enforced() {
+    let mut w = World::new();
+    let ix = |w: &World, interval: i64| {
+        Instruction::new_with_bytes(
+            w.program_id,
+            &monthly::instruction::CreatePlan {
+                plan_id: PLAN_ID,
+                name: "x".into(),
+                image: String::new(),
+                amount: PLAN_AMOUNT,
+                interval_seconds: interval,
+            }
+            .data(),
+            monthly::accounts::CreatePlan {
+                merchant: w.merchant.pubkey(),
+                plan: w.plan,
+                mint: w.mint,
+                merchant_token_account: w.merchant_ata,
+                system_program: system_program::ID,
+            }
+            .to_account_metas(None),
+        )
+    };
+    let merchant = w.merchant.insecure_clone();
+    let too_long = ix(&w, MAX_INTERVAL_SECONDS + 1);
+    assert_error(w.send(too_long, &merchant), MonthlyError::IntervalTooLong);
 }

@@ -14,9 +14,20 @@ import { cn } from "@/lib/utils";
 
 export type PlanDraft = { name: string; image: string; price: string; interval: number };
 
-export function draftFromPlan(p: { name: string; image: string; amount: { toString(): string }; intervalSeconds: { toNumber(): number } }): PlanDraft {
-  return { name: p.name, image: p.image, price: formatUsdc(p.amount).replace(/,/g, ""), interval: p.intervalSeconds.toNumber() };
+/** Exact decimal representation of a base-unit amount (no rounding, no grouping). */
+function exactUsdc(amount: { toString(): string }): string {
+  const units = amount.toString().padStart(7, "0");
+  const whole = units.slice(0, -6).replace(/^0+(?=\d)/, "");
+  const frac = units.slice(-6).replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : whole;
 }
+
+export function draftFromPlan(p: { name: string; image: string; amount: { toString(): string }; intervalSeconds: { toNumber(): number } }): PlanDraft {
+  return { name: p.name, image: p.image, price: exactUsdc(p.amount), interval: p.intervalSeconds.toNumber() };
+}
+
+/** The program stores up to 32 bytes; emoji and umlauts take more than one byte per character. */
+const nameBytes = (name: string) => new TextEncoder().encode(name.trim()).length;
 
 export const EMPTY_DRAFT: PlanDraft = {
   name: "",
@@ -26,7 +37,7 @@ export const EMPTY_DRAFT: PlanDraft = {
 };
 
 export function isDraftValid(d: PlanDraft) {
-  return d.name.trim().length > 0 && parseUsdc(d.price) !== null;
+  return d.name.trim().length > 0 && nameBytes(d.name) <= 32 && parseUsdc(d.price) !== null;
 }
 
 /**
@@ -61,8 +72,10 @@ export function PlanForm({
           value={draft.name}
           maxLength={32}
           placeholder="e.g. Alpha Signals"
+          aria-invalid={nameBytes(draft.name) > 32}
           onChange={(e) => set({ name: e.target.value })}
         />
+        {nameBytes(draft.name) > 32 && <p className="text-xs text-destructive">Name is too long. Use fewer or simpler characters.</p>}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-[1fr_auto]">

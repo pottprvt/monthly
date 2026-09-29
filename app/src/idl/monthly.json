@@ -67,7 +67,12 @@
           }
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "expected_amount",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "cancel",
@@ -551,7 +556,12 @@
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "expected_amount",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "update_plan",
@@ -697,6 +707,16 @@
       "code": 6014,
       "name": "PlanHasMembers",
       "msg": "Plan still has members; they must cancel before it can be deleted"
+    },
+    {
+      "code": 6015,
+      "name": "PriceChanged",
+      "msg": "The plan price changed; review the new price and sign again"
+    },
+    {
+      "code": 6016,
+      "name": "IntervalTooLong",
+      "msg": "Interval is longer than the allowed maximum"
     }
   ],
   "types": [
@@ -855,6 +875,14 @@
       ],
       "type": "i64",
       "value": "259200"
+    },
+    {
+      "name": "MAX_INTERVAL_SECONDS",
+      "docs": [
+        "Longest allowed billing interval (one year plus a day)."
+      ],
+      "type": "i64",
+      "value": "31622400"
     },
     {
       "name": "MIN_INTERVAL_SECONDS",

@@ -32,4 +32,8 @@ pub enum MonthlyError {
     NothingToAccept,
     #[msg("Plan still has members; they must cancel before it can be deleted")]
     PlanHasMembers,
+    #[msg("The plan price changed; review the new price and sign again")]
+    PriceChanged,
+    #[msg("Interval is longer than the allowed maximum")]
+    IntervalTooLong,
 }

@@ -62,7 +62,8 @@ export async function subscribeIxs(
   return [
     createApproveInstruction(source, AUTHORITY, subscriber, limit),
     await program.methods
-      .subscribe()
+      // The price the member saw; the program refuses if the merchant changed it before this lands.
+      .subscribe(planAccount.amount)
       .accountsPartial({
         subscriber,
         plan,
@@ -123,10 +124,13 @@ export async function cancelIx(program: MonthlyProgram, subscriber: PublicKey, p
 export async function acceptPriceIx(
   program: MonthlyProgram,
   subscriber: PublicKey,
-  plan: PublicKey,
+  plan: Plan,
   subscription: PublicKey,
 ) {
-  return program.methods.acceptPrice().accountsPartial({ subscriber, plan, subscription }).instruction();
+  return program.methods
+    .acceptPrice(plan.account.amount)
+    .accountsPartial({ subscriber, plan: plan.publicKey, subscription })
+    .instruction();
 }
 
 export function toTx(ixs: TransactionInstruction[], feePayer: PublicKey): Transaction {

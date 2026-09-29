@@ -68,7 +68,7 @@ function Overview() {
         <SetupChecklist
           items={[
             { label: "Create a plan", done: true },
-            { label: "Connect Telegram or Discord", done: false, note: "Coming soon" },
+            { label: "Connect your Telegram group", done: false, href: `/dashboard/plans/${plans[0].publicKey.toBase58()}` },
             { label: "Share your link and get your first member", done: false, href: `/dashboard/plans/${plans[0].publicKey.toBase58()}` },
           ]}
         />

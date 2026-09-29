@@ -1,6 +1,8 @@
 import { getAccount, type Account as TokenAccount } from "@solana/spl-token";
 import type { Connection, PublicKey } from "@solana/web3.js";
 
+import { USDC_MINT } from "@/lib/config";
+
 import { AUTHORITY, planPda, usdcAta } from "./pda";
 import type { MonthlyProgram } from "./program";
 
@@ -25,6 +27,13 @@ export const SUBSCRIPTION_DEPOSIT_LAMPORTS = rentExemptLamports(SUBSCRIPTION_SIZ
 /** Plan ids are sequential per merchant (1..MAX_PLANS), so all plans load with one multi-account read. */
 export const MAX_PLANS = 64;
 
+/** Decodes a plan account; null for other sizes (old program versions) and for plans in another token. */
+function decodePlan(program: MonthlyProgram, data: Buffer | null | undefined): PlanAccount | null {
+  if (!data || data.length !== PLAN_SIZE) return null;
+  const plan: PlanAccount = program.coder.accounts.decode("plan", data);
+  return plan.mint.equals(USDC_MINT) ? plan : null;
+}
+
 export async function fetchPlansByMerchant(
   program: MonthlyProgram,
   merchant: PublicKey,
@@ -32,29 +41,27 @@ export async function fetchPlansByMerchant(
   const keys = Array.from({ length: MAX_PLANS }, (_, i) => planPda(merchant, i + 1));
   const infos = await program.provider.connection.getMultipleAccountsInfo(keys);
   const plans: Plan[] = [];
-  let nextPlanId = 0;
+  let highest = 0;
   infos.forEach((info, i) => {
-    if (!info) {
-      if (nextPlanId === 0) nextPlanId = i + 1;
-    } else if (info.data.length === PLAN_SIZE) {
-      plans.push({ publicKey: keys[i], account: program.coder.accounts.decode("plan", info.data) });
-    }
+    if (!info) return;
+    highest = i + 1;
+    const account = decodePlan(program, info.data);
+    if (account) plans.push({ publicKey: keys[i], account });
   });
-  return { plans, nextPlanId };
+  // Always after the highest id in use, so a deleted plan's address (and its shared links) is not reused
+  // unless it was the newest one. 0 means the merchant reached MAX_PLANS.
+  return { plans, nextPlanId: highest < MAX_PLANS ? highest + 1 : 0 };
 }
 
 export async function fetchPlan(program: MonthlyProgram, plan: PublicKey): Promise<PlanAccount | null> {
   const info = await program.provider.connection.getAccountInfo(plan);
-  if (!info || info.data.length !== PLAN_SIZE) return null;
-  return program.coder.accounts.decode("plan", info.data);
+  return decodePlan(program, info?.data);
 }
 
 export async function fetchPlans(program: MonthlyProgram, keys: PublicKey[]): Promise<(PlanAccount | null)[]> {
   if (keys.length === 0) return [];
   const infos = await program.provider.connection.getMultipleAccountsInfo(keys);
-  return infos.map((info) =>
-    info && info.data.length === PLAN_SIZE ? program.coder.accounts.decode("plan", info.data) : null,
-  );
+  return infos.map((info) => decodePlan(program, info?.data));
 }
 
 export async function fetchSubscription(
@@ -75,6 +82,13 @@ export async function fetchSubscriptionsBySubscriber(program: MonthlyProgram, su
 
 export async function fetchAllSubscriptions(program: MonthlyProgram) {
   return program.account.subscription.all([{ dataSize: SUBSCRIPTION_SIZE }]);
+}
+
+export async function fetchSubscriptionsByPlan(program: MonthlyProgram, plan: PublicKey) {
+  return program.account.subscription.all([
+    { dataSize: SUBSCRIPTION_SIZE },
+    { memcmp: { offset: 40, bytes: plan.toBase58() } },
+  ]);
 }
 
 export async function fetchUsdcAccount(connection: Connection, owner: PublicKey): Promise<TokenAccount | null> {

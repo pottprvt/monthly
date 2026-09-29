@@ -2,12 +2,12 @@
 
 import { CopyIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 
 import { StatusBadge } from "@/components/common/status-badge";
 import { PlanAvatar } from "@/components/plan/plan-avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { effectivePrice, memberStatus, type Plan, type Subscription } from "@/lib/chain";
+import { copyText } from "@/lib/clipboard";
 import { formatDate, formatDateTime, formatUsdc, shortAddress, timeUntil } from "@/lib/format";
 
 const ACCESS: Record<string, { label: string; className: string }> = {
@@ -75,10 +75,7 @@ export function MembersTable({
                 <TableCell className="pl-4">
                   <button
                     className="group inline-flex items-center gap-1.5 font-mono text-xs"
-                    onClick={() => {
-                      void navigator.clipboard.writeText(wallet);
-                      toast.success("Wallet address copied");
-                    }}
+                    onClick={() => void copyText(wallet, "Wallet address copied")}
                   >
                     {shortAddress(wallet)}
                     <CopyIcon className="size-3 opacity-0 transition-opacity group-hover:opacity-60" />

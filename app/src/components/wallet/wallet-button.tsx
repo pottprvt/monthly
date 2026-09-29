@@ -3,17 +3,18 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { CopyIcon, ExternalLinkIcon, LogOutIcon, WalletIcon } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { copyText } from "@/lib/clipboard";
 import { explorerAddress } from "@/lib/config";
 import { shortAddress } from "@/lib/format";
 
@@ -44,17 +45,14 @@ export function WalletButton({ size = "default" }: { size?: "default" | "lg" }) 
         <span className="font-mono text-xs">{shortAddress(address)}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="font-mono text-xs">{shortAddress(address, 6)}</DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="font-mono text-xs">{shortAddress(address, 6)}</DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => request()} disabled={busy}>
           <WalletIcon /> {busy ? "Sending test funds…" : "Get test funds"}
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => {
-            void navigator.clipboard.writeText(address);
-            toast.success("Address copied");
-          }}
-        >
+        <DropdownMenuItem onClick={() => void copyText(address, "Address copied")}>
           <CopyIcon /> Copy address
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => window.open(explorerAddress(address), "_blank")}>

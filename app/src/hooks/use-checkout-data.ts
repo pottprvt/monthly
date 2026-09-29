@@ -22,6 +22,8 @@ export type CheckoutData = {
   plan: PlanAccount | null | undefined;
   sub: SubscriptionAccount | null;
   balance: bigint | null;
+  /** Lamports; the subscription deposit and fee are paid in SOL. */
+  sol: number;
   limitLeft: bigint;
   failing: boolean;
 };
@@ -34,6 +36,7 @@ export function useCheckoutData(planKey: PublicKey | null): CheckoutData {
     plan: undefined,
     sub: null,
     balance: null,
+    sol: 0,
     limitLeft: 0n,
   });
 
@@ -41,14 +44,15 @@ export function useCheckoutData(planKey: PublicKey | null): CheckoutData {
     if (!planKey) return;
     const plan = await fetchPlan(program, planKey);
     if (!publicKey || !plan) {
-      setState({ plan, sub: null, balance: null, limitLeft: 0n });
+      setState({ plan, sub: null, balance: null, sol: 0, limitLeft: 0n });
       return;
     }
-    const [sub, usdc] = await Promise.all([
+    const [sub, usdc, sol] = await Promise.all([
       fetchSubscription(program, subscriptionPda(planKey, publicKey)),
       fetchUsdcAccount(connection, publicKey),
+      connection.getBalance(publicKey),
     ]);
-    setState({ plan, sub, balance: usdc ? usdc.amount : null, limitLeft: spendingLimitLeft(usdc) });
+    setState({ plan, sub, balance: usdc ? usdc.amount : null, sol, limitLeft: spendingLimitLeft(usdc) });
   }, [planKey, program, publicKey, connection]);
 
   const failing = usePoll(load, 10_000);

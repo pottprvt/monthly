@@ -13,7 +13,8 @@ export class TelegramError extends Error {
   }
 }
 
-export async function tg<T = unknown>(method: string, params: Record<string, unknown> = {}): Promise<T> {
+export async function tg<T = unknown>(method: string, initialParams: Record<string, unknown> = {}): Promise<T> {
+  let params = initialParams;
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not set");
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -22,8 +23,19 @@ export async function tg<T = unknown>(method: string, params: Record<string, unk
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params),
     });
-    const data = (await res.json()) as { ok: boolean; result?: T; description?: string; parameters?: { retry_after?: number } };
+    const data = (await res.json()) as {
+      ok: boolean;
+      result?: T;
+      description?: string;
+      parameters?: { retry_after?: number; migrate_to_chat_id?: number };
+    };
     if (data.ok) return data.result as T;
+    // A basic group became a supergroup (e.g. when the bot got admin rights): retry on the new id.
+    const migrated = data.parameters?.migrate_to_chat_id;
+    if (migrated && "chat_id" in params && params.chat_id !== migrated && attempt < 2) {
+      params = { ...params, chat_id: migrated };
+      continue;
+    }
     const wait = data.parameters?.retry_after;
     if (res.status === 429 && wait && attempt < 2) {
       await new Promise((r) => setTimeout(r, wait * 1000));
@@ -45,8 +57,18 @@ export async function sendMessage(chatId: number, text: string, button?: { text:
   });
 }
 
-/** Removes a user without a permanent ban, so they can rejoin after paying again. */
+/** True when Telegram says the user is not (or no longer) in the chat, i.e. there is nothing to remove. */
+export function notAMember(err: unknown): boolean {
+  return err instanceof TelegramError && /not found|not a member|participant|user_id_invalid/i.test(err.description);
+}
+
+/** Removes a user without a permanent ban, so they can rejoin after paying again. Throws if Telegram refuses. */
 export async function removeMember(chatId: number, userId: number) {
-  await tg("banChatMember", { chat_id: chatId, user_id: userId, revoke_messages: false });
+  try {
+    await tg("banChatMember", { chat_id: chatId, user_id: userId, revoke_messages: false });
+  } catch (err) {
+    if (notAMember(err)) return;
+    throw err;
+  }
   await tg("unbanChatMember", { chat_id: chatId, user_id: userId, only_if_banned: true }).catch(() => undefined);
 }
