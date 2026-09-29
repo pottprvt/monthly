@@ -73,7 +73,12 @@ export type Monthly = {
           }
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "expectedAmount",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "cancel",
@@ -557,7 +562,12 @@ export type Monthly = {
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "expectedAmount",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "updatePlan",
@@ -703,6 +713,16 @@ export type Monthly = {
       "code": 6014,
       "name": "planHasMembers",
       "msg": "Plan still has members; they must cancel before it can be deleted"
+    },
+    {
+      "code": 6015,
+      "name": "priceChanged",
+      "msg": "The plan price changed; review the new price and sign again"
+    },
+    {
+      "code": 6016,
+      "name": "intervalTooLong",
+      "msg": "Interval is longer than the allowed maximum"
     }
   ],
   "types": [
@@ -861,6 +881,14 @@ export type Monthly = {
       ],
       "type": "i64",
       "value": "259200"
+    },
+    {
+      "name": "maxIntervalSeconds",
+      "docs": [
+        "Longest allowed billing interval (one year plus a day)."
+      ],
+      "type": "i64",
+      "value": "31622400"
     },
     {
       "name": "minIntervalSeconds",

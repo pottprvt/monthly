@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import { sendMessage } from "@/integrations/telegram/api";
 import { handleUpdate, type Update } from "@/integrations/telegram/bot";
+import { forgetSeen } from "@/server/store";
 
 function validSecret(given: string | null): boolean {
   const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -22,11 +23,14 @@ export async function POST(req: Request) {
   try {
     await handleUpdate(update, new URL(req.url).origin);
   } catch (err) {
-    // Acknowledge anyway so Telegram does not retry a failing update forever. Tell the chat what went wrong.
     console.error("telegram update failed", update.update_id, err);
-    const chatId = update.message?.chat.id;
-    if (chatId) {
-      await sendMessage(chatId, `Something went wrong: ${(err as Error).message}. Please try again from Monthly.`).catch(() => undefined);
+    if (update.message) {
+      // Commands: tell the chat and do not retry (the user can simply try again from Monthly).
+      await sendMessage(update.message.chat.id, "Something went wrong. Please try again from Monthly.").catch(() => undefined);
+    } else {
+      // Join requests and membership changes must not be lost: let Telegram deliver them again.
+      await forgetSeen(update.update_id).catch(() => undefined);
+      return NextResponse.json({ ok: false }, { status: 500 });
     }
   }
   return NextResponse.json({ ok: true });

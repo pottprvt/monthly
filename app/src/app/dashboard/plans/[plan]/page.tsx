@@ -12,8 +12,8 @@ import { MembersTable } from "@/components/dashboard/members-table";
 import { CommunityConnections } from "@/components/plan/community-connections";
 import { PlanAvatar } from "@/components/plan/plan-avatar";
 import { ShareLink } from "@/components/plan/share-link";
-import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConnectGate } from "@/components/wallet/connect-gate";
 import { useAutoCollect } from "@/hooks/use-auto-collect";
@@ -65,6 +65,11 @@ function PlanDetail() {
           <EmptyTitle>Plan not found</EmptyTitle>
           <EmptyDescription>It doesn&apos;t exist or belongs to another wallet.</EmptyDescription>
         </EmptyHeader>
+        <EmptyContent>
+          <Link href="/dashboard/plans" className={buttonVariants({ variant: "outline" })}>
+            Back to plans
+          </Link>
+        </EmptyContent>
       </Empty>
     );
   }
@@ -97,9 +102,12 @@ function PlanDetail() {
                 disabled={busy !== null}
                 onClick={() => {
                   if (!confirm(`Delete “${a.name}”? Your deposit of ${formatSol(PLAN_DEPOSIT_LAMPORTS)} SOL is returned.`)) return;
-                  void run("delete", async () => [await deletePlanIx(program, publicKey!, plan.publicKey)], "Plan deleted, deposit returned").then(
-                    (ok) => ok && router.push("/dashboard/plans"),
-                  );
+                  void run(
+                    "delete",
+                    async () => [await deletePlanIx(program, publicKey!, plan.publicKey)],
+                    "Plan deleted, deposit returned",
+                    { refresh: false },
+                  ).then((ok) => ok && router.push("/dashboard/plans"));
                 }}
               >
                 Delete plan

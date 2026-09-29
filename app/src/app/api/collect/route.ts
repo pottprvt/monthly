@@ -2,11 +2,9 @@ import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { NextResponse } from "next/server";
 
 import { RPC_URL } from "@/lib/config";
+import { clientIp } from "@/server/auth/request";
 import { collectDue } from "@/server/collect";
-
-/** Last run per scope on this instance; keeps open tabs from triggering duplicate work. */
-const lastRun = new Map<string, number>();
-const MIN_GAP_MS = 8_000;
+import { allow, storeConfigured } from "@/server/store";
 
 function key(value: unknown): PublicKey | undefined {
   if (typeof value !== "string") return undefined;
@@ -29,9 +27,13 @@ export async function POST(req: Request) {
   }
 
   const scopeKey = [scope.plan, scope.subscriber, scope.merchant].map((k) => k?.toBase58() ?? "").join(":");
-  const last = lastRun.get(scopeKey) ?? 0;
-  if (Date.now() - last < MIN_GAP_MS) return NextResponse.json({ due: 0, collected: 0, throttled: true });
-  lastRun.set(scopeKey, Date.now());
+  if (storeConfigured()) {
+    const ok =
+      (await allow(`collect:scope:${scopeKey}`, 1, 8)) &&
+      (await allow(`collect:ip:${clientIp(req)}`, 20, 60)) &&
+      (await allow("collect:all", 120, 60));
+    if (!ok) return NextResponse.json({ due: 0, collected: 0, throttled: true });
+  }
 
   const payer = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(raw)));
   const result = await collectDue(new Connection(RPC_URL, "confirmed"), payer, scope);

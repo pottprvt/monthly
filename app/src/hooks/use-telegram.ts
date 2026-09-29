@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 export type TelegramStatus =
   | { status: "loading" }
+  | { status: "unavailable" }
   | { status: "not_configured" }
   | { status: "needs_setup" }
   | { status: "connected"; title: string }
@@ -16,9 +17,11 @@ export function useTelegramStatus(plan: string | null, watch = false) {
   const load = useCallback(async () => {
     if (!plan) return;
     try {
-      setState((await (await fetch(`/api/integrations/telegram/status?plan=${plan}`)).json()) as TelegramStatus);
+      const res = await fetch(`/api/integrations/telegram/status?plan=${plan}`);
+      if (!res.ok) throw new Error(String(res.status));
+      setState((await res.json()) as TelegramStatus);
     } catch {
-      // keep the previous state; the next poll retries
+      setState((prev) => (prev.status === "loading" ? { status: "unavailable" } : prev));
     }
   }, [plan]);
 
@@ -28,7 +31,7 @@ export function useTelegramStatus(plan: string | null, watch = false) {
       if (active) void load();
     };
     run();
-    if (!watch) {
+    if (!watch || state.status === "connected") {
       return () => {
         active = false;
       };
@@ -38,8 +41,27 @@ export function useTelegramStatus(plan: string | null, watch = false) {
       active = false;
       window.clearInterval(timer);
     };
-  }, [load, watch]);
+  }, [load, watch, state.status]);
 
+  return state;
+}
+
+export type MemberAccess = "pending" | "granted" | "revoked" | null;
+
+/** The signed-in member's own access state for a plan (null when unknown or not linked yet). */
+export function useMemberAccess(plan: string | null, enabled: boolean): MemberAccess {
+  const [state, setState] = useState<MemberAccess>(null);
+  useEffect(() => {
+    if (!plan || !enabled) return;
+    let active = true;
+    fetch(`/api/integrations/telegram/me?plan=${plan}`)
+      .then((r) => r.json() as Promise<{ state: MemberAccess }>)
+      .then((d) => active && setState(d.state))
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [plan, enabled]);
   return state;
 }
 

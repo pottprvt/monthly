@@ -28,7 +28,7 @@ Set Phantom, Solflare or Backpack to devnet. Test funds come from the app itself
 
 1. **Creator creates a plan**: name, image, price, interval. The plan stores the creator's token account, so charges can only land there.
 2. **Member subscribes**: one transaction that approves the Monthly authority as delegate on the member's USDC account for a chosen limit (e.g. 12 payments) and collects the first period.
-3. **Charges**: once a period has passed, anyone may call `charge`; the program checks the limit and balance and moves exactly the price to the creator. A charge that cannot be covered is retried during a three-day grace period, then the subscription pauses.
+3. **Charges**: once a period has passed, anyone may call `charge`; the program checks the limit and balance and moves exactly the price to the creator. A charge that cannot be covered is retried during a grace period (three days, at most one billing interval), then the subscription pauses.
 4. **Member stays in control**: cancel any time (account closed, rent returned), revoke the delegate in any wallet, resume a paused subscription once funds are back.
 
 Storing a plan or a subscription on Solana needs a refundable deposit (rent): about 0.0024 SOL per plan, returned by `delete_plan` once it has no members, and about 0.0014 SOL per subscription, returned on cancel. The app shows both before signing.
@@ -47,15 +47,15 @@ The billing interval is immutable, because a shorter interval would be a hidden 
 What the program guarantees regardless of any website:
 
 - Only min(agreed price, current price), only once per period, only to the plan's creator account.
-- No price increase without the member's signature; the spending limit is a hard ceiling.
+- No price increase without the member's signature, including a change between signing and execution; the spending limit is a hard ceiling.
 - Only the member can cancel or resume; only the creator can edit or close a plan.
 
 ### Community access (Telegram)
 
 1. **Wallet proof**: the member (or creator) signs a sign-in message with a server nonce; the server verifies the ed25519 signature and issues an HttpOnly session. Wallet addresses from requests are never trusted without it.
 2. **Creator connects a group**: the server checks on-chain that the signed-in wallet owns the plan and returns a one-time `t.me/monthlysolbot?startgroup=<code>` link that requests only "invite users" and "ban users". The bot verifies the adder is a group admin and that it has these rights, then creates the plan's join-request link.
-3. **Member links Telegram**: the server checks on-chain that the signed-in wallet has an active subscription and returns a one-time `t.me/monthlysolbot?start=<code>` link. The bot binds that Telegram account to the wallet and sends the join-request link.
-4. **Join requests** are approved only for Telegram accounts linked to a wallet with an active subscription to that exact plan; everyone else is declined. A forwarded link is useless.
+3. **Member links Telegram**: the server checks on-chain that the signed-in wallet has an active subscription and returns a one-time `t.me/monthlysolbot?start=<code>` link. The bot binds that Telegram account to the subscription (one account per subscription; linking another account removes the previous one) and sends the join-request link.
+4. **Join requests** are approved only for the Telegram account bound to an active subscription of that exact plan; everyone else is declined. A forwarded link is useless.
 5. **Access follows payment**: on cancel, pause or plan close the member is removed (ban and immediate unban, so they can rejoin later) and notified; on resume they get the link again. The sync runs right after member actions and in the scheduled job.
 
 Discord is prepared in the provider registry and specified in [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
@@ -81,7 +81,7 @@ Example transactions from the devnet end-to-end run (`app/scripts/e2e.ts`):
 
 ## Program
 
-Anchor 1.2 (`programs/monthly`), 13 LiteSVM integration tests.
+Anchor 1.2 (`programs/monthly`), 15 LiteSVM integration tests.
 
 | Instruction | Signer | Effect |
 |---|---|---|
@@ -89,9 +89,9 @@ Anchor 1.2 (`programs/monthly`), 13 LiteSVM integration tests.
 | `update_plan(name, image, amount)` | creator | edits the listing; cuts apply to all, increases only to new or accepting members |
 | `close_plan()` | creator | stops new subscriptions and charges |
 | `delete_plan()` | creator | removes a plan without members and returns its storage deposit |
-| `subscribe()` | member | creates the `Subscription` PDA `["subscription", plan, member]` with the agreed price, collects period 1 |
+| `subscribe(expected_amount)` | member | creates the `Subscription` PDA `["subscription", plan, member]` with the agreed price, collects period 1; refused if the price changed since the member saw it |
 | `charge()` | anyone | collects one period if due; pauses after the grace period if blocked |
-| `accept_price()` | member | agrees to the plan's current, higher price |
+| `accept_price(expected_amount)` | member | agrees to the plan's current, higher price (the one the member saw) |
 | `resume()` | member | reactivates a paused subscription by collecting one period |
 | `cancel()` | member | closes the subscription |
 
@@ -113,7 +113,8 @@ Next.js 16 (App Router), shadcn/ui, wallet adapter (Wallet Standard), deployed o
 | `POST /api/integrations/telegram/{connect,link}` | one-time bot links for creators and members |
 | `GET /api/integrations/telegram/{status,members}` | connection state and per-member access state |
 | `POST /api/integrations/telegram/webhook` | bot updates, authenticated by the webhook secret |
-| `POST /api/access/refresh` | re-check access after cancel, resume or plan close |
+| `GET /api/integrations/telegram/me` | the signed-in member's own access state |
+| `POST /api/access/refresh` | re-check access after cancel, resume or plan close (member or plan owner only) |
 | `POST /api/collect`, `POST /api/cron/charge` | collect due payments (on demand / scheduled) |
 | `POST /api/faucet` | devnet test funds |
 | `GET/POST /api/actions/subscribe/[plan]`, `/actions.json` | Solana Blink for plan links |

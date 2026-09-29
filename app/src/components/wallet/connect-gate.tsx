@@ -2,7 +2,7 @@
 
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 
@@ -11,7 +11,8 @@ import { WalletButton } from "./wallet-button";
 /** Renders children only with a connected wallet; otherwise a centered connect prompt. */
 export function ConnectGate({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   const { publicKey } = useWallet();
-  if (publicKey) return <>{children}</>;
+  // Keyed by wallet so views start fresh (no data of the previous wallet) after switching accounts.
+  if (publicKey) return <Fragment key={publicKey.toBase58()}>{children}</Fragment>;
   return (
     <Empty className="min-h-[50vh] border">
       <EmptyHeader>

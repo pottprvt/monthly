@@ -42,7 +42,13 @@ export async function syncPlanAccess(connection: Connection, plan: string, only?
     const desired = !!planAccount?.active && (await subscriptionActive(program, subscription));
 
     if (!desired && grant.state !== "revoked") {
-      if (grant.state === "granted") await removeMember(conn.chatId, grant.userId).catch(() => undefined);
+      if (grant.state === "granted") {
+        try {
+          await removeMember(conn.chatId, grant.userId);
+        } catch {
+          continue; // keep the state so the next run retries the removal
+        }
+      }
       await setGrant(subscription, { ...grant, state: "revoked", updatedAt: Date.now() });
       await sendMessage(grant.userId, `Your subscription ended, so your access to ${conn.title} was removed. Subscribe again any time to rejoin.`).catch(() => undefined);
       result.revoked++;

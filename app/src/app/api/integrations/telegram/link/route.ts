@@ -6,11 +6,12 @@ import { NextResponse } from "next/server";
 import { memberUrl } from "@/integrations/telegram/bot";
 import { fetchPlan, fetchSubscription, isPaused, readProgram, subscriptionPda } from "@/lib/chain";
 import { RPC_URL } from "@/lib/config";
-import { sessionWallet } from "@/server/auth/request";
+import { sameOrigin, sessionWallet } from "@/server/auth/request";
 import { putCode } from "@/server/store";
 
 /** Member: returns a one-time link to the bot that binds their Telegram account to their wallet. */
 export async function POST(req: Request) {
+  if (!sameOrigin(req)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const wallet = await sessionWallet();
   if (!wallet) return NextResponse.json({ error: "Sign in with your wallet first" }, { status: 401 });
   const { plan } = (await req.json().catch(() => ({}))) as { plan?: string };

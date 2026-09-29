@@ -1,9 +1,11 @@
 "use client";
 
 import { useWallet } from "@solana/wallet-adapter-react";
+import { PublicKey } from "@solana/web3.js";
 import { ArrowRightIcon, XIcon } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
 
 import { Logo } from "@/components/brand/logo";
 import { CommunityConnections } from "@/components/plan/community-connections";
@@ -16,16 +18,33 @@ import { useTestFunds } from "@/components/wallet/use-test-funds";
 import { WalletButton } from "@/components/wallet/wallet-button";
 import { useCreatorData } from "@/hooks/use-creator-data";
 import { useProgram } from "@/hooks/use-program";
+import { useTelegramStatus } from "@/hooks/use-telegram";
 import { useTx } from "@/hooks/use-tx";
-import { PLAN_DEPOSIT_LAMPORTS, createPlanIx, planPda } from "@/lib/chain";
+import { PLAN_DEPOSIT_LAMPORTS, createPlanIx, fetchPlan, planPda } from "@/lib/chain";
 import { formatSol, formatUsdc, parseUsdc, perInterval, shortAddress } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const STEPS = ["Plan", "Community", "Share"] as const;
 
 export default function CreatePage() {
-  const [step, setStep] = useState(0);
-  const [created, setCreated] = useState<string | null>(null);
+  return (
+    <Suspense>
+      <CreateWizard />
+    </Suspense>
+  );
+}
+
+/**
+ * Wizard state lives in the URL (?plan=…&step=…), so a reload after creating the plan continues at the
+ * right step instead of offering to create a second plan.
+ */
+function CreateWizard() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const created = params.get("plan");
+  const step = created ? (params.get("step") === "share" ? 2 : 1) : 0;
+  const go = (plan: string, next: "community" | "share") => router.replace(`/create?plan=${plan}&step=${next}`);
+  const restart = useCallback(() => router.replace("/create"), [router]);
 
   return (
     <div className="min-h-svh">
@@ -64,15 +83,9 @@ export default function CreatePage() {
           Step {step + 1} of {STEPS.length} · {STEPS[step]}
         </p>
         <ConnectGate title="Connect your wallet" description="Payments for your plan go straight to this wallet.">
-          {step === 0 && (
-            <PlanStep
-              onCreated={(plan) => {
-                setCreated(plan);
-                setStep(1);
-              }}
-            />
-          )}
-          {step === 1 && (
+          {created && <OwnerCheck plan={created} onForeign={restart} />}
+          {step === 0 && <PlanStep onCreated={(plan) => go(plan, "community")} />}
+          {step === 1 && created && (
             <div className="mx-auto max-w-2xl space-y-8">
               <div>
                 <h1 className="text-2xl font-semibold tracking-tight">Connect your community</h1>
@@ -80,12 +93,8 @@ export default function CreatePage() {
                   Members get access while they pay and are removed when they stop.
                 </p>
               </div>
-              <CommunityConnections plan={created ?? undefined} />
-              <div className="flex justify-end">
-                <Button onClick={() => setStep(2)}>
-                  Continue <ArrowRightIcon data-icon="inline-end" />
-                </Button>
-              </div>
+              <CommunityConnections plan={created} />
+              <CommunityNext plan={created} onNext={() => go(created, "share")} />
             </div>
           )}
           {step === 2 && created && (
@@ -109,6 +118,45 @@ export default function CreatePage() {
       </main>
     </div>
   );
+}
+
+/** Step 2 footer: "Continue" once a group is connected, otherwise an explicit "Skip for now". */
+function CommunityNext({ plan, onNext }: { plan: string; onNext: () => void }) {
+  const status = useTelegramStatus(plan, true);
+  const connected = status.status === "connected";
+  return (
+    <div className="flex items-center justify-end gap-3">
+      {!connected && <span className="text-xs text-muted-foreground">You can connect a group later from the plan page.</span>}
+      <Button variant={connected ? "default" : "outline"} onClick={onNext}>
+        {connected ? "Continue" : "Skip for now"} <ArrowRightIcon data-icon="inline-end" />
+      </Button>
+    </div>
+  );
+}
+
+/** Resets the wizard if the plan in the URL belongs to another wallet (e.g. after switching accounts). */
+function OwnerCheck({ plan, onForeign }: { plan: string; onForeign: () => void }) {
+  const { publicKey } = useWallet();
+  const program = useProgram();
+  useEffect(() => {
+    let active = true;
+    let key: PublicKey;
+    try {
+      key = new PublicKey(plan);
+    } catch {
+      onForeign();
+      return;
+    }
+    fetchPlan(program, key)
+      .then((account) => {
+        if (active && account && publicKey && !account.merchant.equals(publicKey)) onForeign();
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [plan, program, publicKey, onForeign]);
+  return null;
 }
 
 function PlanStep({ onCreated }: { onCreated: (plan: string) => void }) {

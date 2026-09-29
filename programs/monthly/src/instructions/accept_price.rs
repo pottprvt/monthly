@@ -22,8 +22,10 @@ pub struct AcceptPrice<'info> {
 }
 
 /// The subscriber agrees to the plan's current, higher price. Without this, they keep paying the old one.
-pub fn handle_accept_price(ctx: Context<AcceptPrice>) -> Result<()> {
+/// `expected_amount` is the price the subscriber saw; a price changed in the meantime is refused.
+pub fn handle_accept_price(ctx: Context<AcceptPrice>, expected_amount: u64) -> Result<()> {
     let price = ctx.accounts.plan.amount;
+    require!(price == expected_amount, MonthlyError::PriceChanged);
     let sub = &mut ctx.accounts.subscription;
     require!(price > sub.agreed_amount, MonthlyError::NothingToAccept);
     sub.agreed_amount = price;

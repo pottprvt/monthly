@@ -42,9 +42,11 @@ pub struct Subscribe<'info> {
 
 /// Creates the subscription and collects the first period immediately.
 /// The subscriber must have approved the program authority as delegate beforehand
-/// (normally in the same transaction).
-pub fn handle_subscribe(ctx: Context<Subscribe>) -> Result<()> {
+/// (normally in the same transaction). `expected_amount` is the price the subscriber saw; if the
+/// merchant changed the price in the meantime, the subscription is refused.
+pub fn handle_subscribe(ctx: Context<Subscribe>, expected_amount: u64) -> Result<()> {
     let amount = ctx.accounts.plan.amount;
+    require!(amount == expected_amount, MonthlyError::PriceChanged);
     check_mandate(&ctx.accounts.subscriber_token_account, &ctx.accounts.authority.key(), amount)
         .map_err(MonthlyError::from)?;
 

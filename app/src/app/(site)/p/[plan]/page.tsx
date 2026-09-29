@@ -14,7 +14,7 @@ import { StatusBadge } from "@/components/common/status-badge";
 import { Step } from "@/components/common/step";
 import { PlanCard } from "@/components/plan/plan-card";
 import { buttonVariants } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WalletButton } from "@/components/wallet/wallet-button";
 import { useAutoCollect } from "@/hooks/use-auto-collect";
@@ -24,6 +24,12 @@ import { effectivePrice, memberStatus, pendingIncrease } from "@/lib/chain";
 import { formatDateTime, formatUsdc, perInterval, shortAddress, timeUntil } from "@/lib/format";
 
 export default function CheckoutPage() {
+  const { publicKey } = useWallet();
+  // Keyed by wallet so nothing from a previously connected account is shown.
+  return <Checkout key={publicKey?.toBase58() ?? "none"} />;
+}
+
+function Checkout() {
   const { plan: param } = useParams<{ plan: string }>();
   const planKey = useMemo(() => {
     try {
@@ -33,7 +39,7 @@ export default function CheckoutPage() {
     }
   }, [param]);
   const { publicKey } = useWallet();
-  const { plan, sub, balance, limitLeft, failing } = useCheckoutData(planKey);
+  const { plan, sub, balance, sol, limitLeft, failing } = useCheckoutData(planKey);
   const now = useNow();
   const due = !!plan?.active && !!sub && memberStatus(sub, now) === "due";
   useAutoCollect(publicKey && planKey ? { plan: planKey.toBase58(), subscriber: publicKey.toBase58() } : null, due);
@@ -44,8 +50,13 @@ export default function CheckoutPage() {
         <Empty className="border">
           <EmptyHeader>
             <EmptyTitle>Plan not found</EmptyTitle>
-            <EmptyDescription>Check the link you were given.</EmptyDescription>
+            <EmptyDescription>It may have been deleted. Check the link you were given.</EmptyDescription>
           </EmptyHeader>
+          <EmptyContent>
+            <Link href="/" className={buttonVariants({ variant: "outline" })}>
+              Back to Monthly
+            </Link>
+          </EmptyContent>
         </Empty>
       </div>
     );
@@ -103,7 +114,7 @@ export default function CheckoutPage() {
               </Step>
               <Step n={2} title="Approve and pay" state={publicKey ? "current" : "upcoming"}>
                 {publicKey && (
-                  <SubscribeStep planKey={planKey} plan={plan} subscriber={publicKey} balance={balance} limitLeft={limitLeft} />
+                  <SubscribeStep planKey={planKey} plan={plan} subscriber={publicKey} balance={balance} sol={sol} limitLeft={limitLeft} />
                 )}
               </Step>
               <Step n={3} title="Join the community" state="upcoming" last />

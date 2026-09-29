@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { copyText } from "@/lib/clipboard";
 
 /** The plan's public checkout link with copy and open actions. */
 export function ShareLink({ plan }: { plan: string }) {
@@ -12,7 +13,7 @@ export function ShareLink({ plan }: { plan: string }) {
   const path = `/p/${plan}`;
 
   async function copy() {
-    await navigator.clipboard.writeText(`${window.location.origin}${path}`);
+    if (!(await copyText(`${window.location.origin}${path}`, "Link copied"))) return;
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }

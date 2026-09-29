@@ -34,6 +34,9 @@ export type LinkCode =
 export async function putCode(code: string, value: LinkCode) {
   await redis().set(`code:${code}`, value, { ex: 600 });
 }
+export async function peekCode(code: string): Promise<LinkCode | null> {
+  return redis().get<LinkCode>(`code:${code}`);
+}
 export async function takeCode(code: string): Promise<LinkCode | null> {
   return redis().getdel<LinkCode>(`code:${code}`);
 }
@@ -41,6 +44,10 @@ export async function takeCode(code: string): Promise<LinkCode | null> {
 /** True the first time an update id is seen within a day (webhook retries are ignored). */
 export async function firstSeen(updateId: number): Promise<boolean> {
   return (await redis().set(`seen:tg:${updateId}`, 1, { nx: true, ex: 86_400 })) === "OK";
+}
+/** Lets Telegram's retry of a failed update be processed again. */
+export async function forgetSeen(updateId: number) {
+  await redis().del(`seen:tg:${updateId}`);
 }
 
 /** Fixed-window rate limit; returns false when the caller is over the limit. */
@@ -74,6 +81,8 @@ export function connectionIsCurrent(conn: TelegramConnection, planCreatedAt: num
   return conn.connectedAt >= planCreatedAt * 1000;
 }
 export async function setTelegramConnection(plan: string, conn: TelegramConnection) {
+  const previous = await getTelegramConnection(plan);
+  if (previous && previous.chatId !== conn.chatId) await redis().del(`target:telegram:${previous.chatId}`);
   await Promise.all([
     redis().set(`conn:${plan}:telegram`, conn),
     redis().set(`target:telegram:${conn.chatId}`, plan),
@@ -89,11 +98,15 @@ export async function telegramPlans(): Promise<string[]> {
 
 // ---- linked accounts and access grants -------------------------------------
 
-export async function linkTelegramAccount(wallet: string, userId: number) {
-  await Promise.all([redis().set(`id:telegram:${wallet}`, userId), redis().set(`idr:telegram:${userId}`, wallet)]);
+/** Per plan, which wallet a Telegram account pays with. */
+export async function linkTelegramAccount(plan: string, userId: number, wallet: string) {
+  await redis().set(`idr:telegram:${plan}:${userId}`, wallet);
 }
-export async function walletForTelegram(userId: number): Promise<string | null> {
-  return redis().get<string>(`idr:telegram:${userId}`);
+export async function unlinkTelegramAccount(plan: string, userId: number) {
+  await redis().del(`idr:telegram:${plan}:${userId}`);
+}
+export async function walletForTelegram(plan: string, userId: number): Promise<string | null> {
+  return redis().get<string>(`idr:telegram:${plan}:${userId}`);
 }
 
 export type Grant = { plan: string; userId: number; state: "pending" | "granted" | "revoked"; updatedAt: number };
@@ -109,4 +122,8 @@ export async function setGrant(subscription: string, grant: Grant) {
 }
 export async function grantsForPlan(plan: string): Promise<string[]> {
   return redis().smembers(`grants:${plan}`);
+}
+/** Drops grant bookkeeping of a plan address whose previous plan was deleted. */
+export async function clearGrants(plan: string) {
+  await redis().del(`grants:${plan}`);
 }

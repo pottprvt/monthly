@@ -28,6 +28,7 @@ import {
   pendingIncrease,
   resumeIx,
   revokeSpendingLimitIx,
+  setSpendingLimitIx,
 } from "@/lib/chain";
 import { DEMO_PLAN } from "@/lib/config";
 import { formatDateTime, formatUsdc, perInterval, timeUntil } from "@/lib/format";
@@ -82,13 +83,21 @@ function SubscriptionList() {
               now={now}
               busy={busy !== null}
               onAccept={() =>
-                run("accept", async () => [await acceptPriceIx(program, publicKey!, m.plan.publicKey, m.sub.publicKey)], "New price approved")
+                run("accept", async () => [await acceptPriceIx(program, publicKey!, m.plan, m.sub.publicKey)], "New price approved")
               }
-              onResume={() =>
-                void run("resume", async () => [await resumeIx(program, publicKey!, m.plan, m.sub)], "Subscription resumed").then(
-                  (ok) => ok && refreshAccess({ subscription: m.sub.publicKey.toBase58() }),
-                )
-              }
+              onResume={() => {
+                // A paused subscription usually ran out of spending limit: renew it for 12 payments in the same transaction.
+                const price = effectivePrice(m.sub.account, m.plan.account);
+                const needed = price > limitLeft ? limitLeft + price * 12n : null;
+                void run(
+                  "resume",
+                  async () => [
+                    ...(needed !== null ? [setSpendingLimitIx(publicKey!, needed)] : []),
+                    await resumeIx(program, publicKey!, m.plan, m.sub),
+                  ],
+                  "Subscription resumed",
+                ).then((ok) => ok && refreshAccess({ subscription: m.sub.publicKey.toBase58() }));
+              }}
               onCancel={() => {
                 if (!confirm(`Cancel ${m.plan.account.name}? No further payments will be taken.`)) return;
                 void run("cancel", async () => [await cancelIx(program, publicKey!, m.plan.publicKey, m.sub.publicKey)], "Subscription cancelled").then(
@@ -202,7 +211,7 @@ function MembershipRow({
       )}
       {status === "paused" && (
         <div className="ml-14 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-sm">
-          <span className="text-muted-foreground">A payment could not be collected.</span>
+          <span className="text-muted-foreground">A payment could not be collected. Resuming pays now and renews your spending limit.</span>
           <Button size="sm" onClick={onResume} disabled={busy}>
             Resume
           </Button>

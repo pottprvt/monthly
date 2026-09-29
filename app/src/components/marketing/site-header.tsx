@@ -37,6 +37,20 @@ export function SiteHeader() {
           <WalletButton />
         </div>
       </div>
+      <nav className="flex gap-1 border-t px-2 py-1.5 text-sm sm:hidden">
+        {NAV.map((n) => (
+          <Link
+            key={n.href}
+            href={n.href}
+            className={cn(
+              "rounded-md px-3 py-1 text-muted-foreground",
+              path.startsWith(n.href) && "bg-muted text-foreground",
+            )}
+          >
+            {n.label}
+          </Link>
+        ))}
+      </nav>
     </header>
   );
 }

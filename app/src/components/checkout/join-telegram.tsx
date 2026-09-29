@@ -1,25 +1,38 @@
 "use client";
 
-import { ExternalLinkIcon, Loader2Icon } from "lucide-react";
+import { CheckCircle2Icon, ExternalLinkIcon, Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { ProviderIcon } from "@/components/brand/provider-icons";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { useTelegramStatus } from "@/hooks/use-telegram";
+import { useMemberAccess, useTelegramStatus } from "@/hooks/use-telegram";
 import { useWalletSession } from "@/hooks/use-wallet-session";
 
 /** Member control: link the Telegram account through the bot and get the join link. */
 export function JoinTelegram({ plan, size = "default" }: { plan: string; size?: "default" | "sm" }) {
   const status = useTelegramStatus(plan);
+  const access = useMemberAccess(plan, status.status === "connected");
   const ensureSession = useWalletSession();
   const [link, setLink] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (status.status === "loading") return null;
   if (status.status !== "connected") {
-    return size === "sm" ? null : (
-      <p className="text-sm text-muted-foreground">The creator hasn&apos;t connected a community yet. Your subscription is active.</p>
+    if (size === "sm") return null;
+    const text =
+      status.status === "error"
+        ? "The creator's Telegram group has a connection problem right now. Your subscription is active."
+        : status.status === "unavailable"
+          ? "Community status could not be loaded. Your subscription is active."
+          : "The creator hasn't connected a community yet. Your subscription is active.";
+    return <p className="text-sm text-muted-foreground">{text}</p>;
+  }
+  if (access === "granted") {
+    return (
+      <p className="flex items-center gap-2 text-sm">
+        <CheckCircle2Icon className="size-4 text-success" /> You&apos;re a member of <span className="font-medium">{status.title}</span>
+      </p>
     );
   }
 

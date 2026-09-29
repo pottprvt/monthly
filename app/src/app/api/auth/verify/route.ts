@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 
+import { sameOrigin } from "@/server/auth/request";
 import { issueSession, SESSION_COOKIE, verifySignIn } from "@/server/auth/session";
 
 /** Verifies the signed message and starts a session for that wallet. */
 export async function POST(req: Request) {
+  if (!sameOrigin(req)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const body = (await req.json().catch(() => ({}))) as { wallet?: string; nonce?: string; signature?: string };
   if (!body.wallet || !body.nonce || !body.signature) return NextResponse.json({ error: "missing fields" }, { status: 400 });
   if (!(await verifySignIn(body.wallet, body.nonce, body.signature))) {

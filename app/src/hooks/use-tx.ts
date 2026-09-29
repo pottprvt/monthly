@@ -20,16 +20,29 @@ export function useTx() {
   const [busy, setBusy] = useState<string | null>(null);
 
   const run = useCallback(
-    async (label: string, build: () => Promise<TransactionInstruction[]>, success: string): Promise<boolean> => {
+    async (
+      label: string,
+      build: () => Promise<TransactionInstruction[]>,
+      success: string,
+      options: { refresh?: boolean } = {},
+    ): Promise<boolean> => {
       if (!publicKey) return false;
       setBusy(label);
       try {
-        const sig = await sendTransaction(toTx(await build(), publicKey), connection);
-        await connection.confirmTransaction(sig, "confirmed");
+        const tx = toTx(await build(), publicKey);
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+        tx.recentBlockhash = blockhash;
+        const sig = await sendTransaction(tx, connection);
+        const confirmation = await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
+        if (confirmation.value.err) throw new Error(`Transaction failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
         toast.success(success, {
           action: { label: "View", onClick: () => window.open(explorerTx(sig), "_blank") },
         });
-        requestRefresh();
+        if (options.refresh !== false) {
+          requestRefresh();
+          // Devnet RPC nodes can lag a moment behind the confirmation; read again shortly after.
+          window.setTimeout(requestRefresh, 2_000);
+        }
         return true;
       } catch (err) {
         toast.error(friendlyError(err));

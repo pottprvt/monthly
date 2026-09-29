@@ -16,6 +16,8 @@ import {
 import { NextResponse } from "next/server";
 
 import { RPC_URL, USDC_DECIMALS, USDC_MINT } from "@/lib/config";
+import { clientIp } from "@/server/auth/request";
+import { allow, storeConfigured } from "@/server/store";
 
 const USDC_PER_REQUEST = 100n * 10n ** BigInt(USDC_DECIMALS);
 const USDC_CAP = 500n * 10n ** BigInt(USDC_DECIMALS);
@@ -41,21 +43,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid account" }, { status: 400 });
   }
 
+  if (storeConfigured()) {
+    const ok =
+      (await allow(`faucet:ip:${clientIp(req)}`, 5, 3600)) && (await allow(`faucet:wallet:${owner.toBase58()}`, 3, 86_400));
+    if (!ok) return NextResponse.json({ error: "Test funds limit reached, try again later" }, { status: 429 });
+  }
+
   const connection = new Connection(RPC_URL, "confirmed");
   const ata = getAssociatedTokenAddressSync(USDC_MINT, owner);
   const [usdc, lamports] = await Promise.all([
     getAccount(connection, ata).catch(() => null),
     connection.getBalance(owner),
   ]);
-  if (usdc && usdc.amount >= USDC_CAP) {
-    return NextResponse.json({ error: "you already have plenty of test USDC" }, { status: 429 });
+  const needsUsdc = !usdc || usdc.amount < USDC_CAP;
+  const topUp = lamports < SOL_THRESHOLD;
+  if (!needsUsdc && !topUp) {
+    return NextResponse.json({ error: "You already have plenty of test funds" }, { status: 429 });
   }
 
-  const tx = new Transaction().add(
-    createAssociatedTokenAccountIdempotentInstruction(faucet.publicKey, ata, owner, USDC_MINT),
-    createMintToInstruction(USDC_MINT, ata, faucet.publicKey, USDC_PER_REQUEST),
-  );
-  const topUp = lamports < SOL_THRESHOLD;
+  const tx = new Transaction();
+  if (needsUsdc) {
+    tx.add(
+      createAssociatedTokenAccountIdempotentInstruction(faucet.publicKey, ata, owner, USDC_MINT),
+      createMintToInstruction(USDC_MINT, ata, faucet.publicKey, USDC_PER_REQUEST),
+    );
+  }
   if (topUp) {
     tx.add(SystemProgram.transfer({ fromPubkey: faucet.publicKey, toPubkey: owner, lamports: SOL_TOPUP }));
   }
@@ -64,7 +76,7 @@ export async function POST(req: Request) {
     const signature = await sendAndConfirmTransaction(connection, tx, [faucet], {
       commitment: "confirmed",
     });
-    return NextResponse.json({ signature, usdc: 100, sol: topUp ? 0.05 : 0 });
+    return NextResponse.json({ signature, usdc: needsUsdc ? 100 : 0, sol: topUp ? 0.05 : 0 });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message.split("\n")[0] }, { status: 500 });
   }
