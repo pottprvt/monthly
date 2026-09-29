@@ -20,11 +20,11 @@ What the program guarantees regardless of any website:
 
 ## Try it
 
-Live app (devnet): link follows after the Vercel deployment.
+Live app (devnet): **https://monthly-sol.vercel.app**
 
 1. Switch Phantom, Solflare or Backpack to devnet and connect.
 2. Click **Get test funds**: 100 test USDC, plus 0.05 devnet SOL for fees if the wallet is empty. No external faucet needed.
-3. Subscribe to the demo plan (1 test USDC every minute) at `/p/4yRasyiwP2jXpRt7WFX48G56VhZw5C4hb4qFzEiQxNvi`, or create your own plan under **Merchant** and subscribe with a second wallet.
+3. Subscribe to the [demo plan](https://monthly-sol.vercel.app/p/4yRasyiwP2jXpRt7WFX48G56VhZw5C4hb4qFzEiQxNvi) (1 test USDC every minute), or create your own plan under **Merchant** and subscribe with a second wallet.
 4. Watch the charges arrive under **Merchant** or **My subscriptions**; cancel or revoke the mandate any time.
 
 ## Devnet addresses
