@@ -102,7 +102,7 @@ export default function MerchantPage() {
         {hasUsdc === false && (
           <div className="mb-4">
             <Notice tone="error">
-              Your wallet has no USDC account yet. Get devnet USDC from faucet.circle.com first,
+              Your wallet has no test USDC account yet. Click “Get test funds” at the top first;
               the plan needs an account to pay into.
             </Notice>
           </div>

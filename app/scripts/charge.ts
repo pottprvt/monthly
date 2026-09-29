@@ -1,6 +1,6 @@
 /**
  * Charge job: collects every due subscription. Anyone may run it; the payer only covers fees.
- * Usage: CHARGE_KEYPAIR='[1,2,...]' npx tsx scripts/charge.ts
+ * Usage: FAUCET_KEYPAIR='[1,2,...]' npx tsx scripts/charge.ts
  */
 import { AnchorProvider, Wallet } from "@coral-xyz/anchor";
 import { Connection, Keypair, sendAndConfirmTransaction } from "@solana/web3.js";
@@ -17,8 +17,8 @@ import {
 } from "../src/lib/monthly";
 
 async function main() {
-  const secret = process.env.CHARGE_KEYPAIR;
-  if (!secret) throw new Error("CHARGE_KEYPAIR is not set");
+  const secret = process.env.FAUCET_KEYPAIR;
+  if (!secret) throw new Error("FAUCET_KEYPAIR is not set");
   const payer = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(secret)));
   const connection = new Connection(RPC_URL, "confirmed");
   const provider = new AnchorProvider(connection, new Wallet(payer), { commitment: "confirmed" });

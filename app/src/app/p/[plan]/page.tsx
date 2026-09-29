@@ -148,7 +148,7 @@ export default function PlanPage() {
           {balance === null && (
             <div className="mb-4">
               <Notice tone="error">
-                No USDC account in this wallet. Get devnet USDC from faucet.circle.com first.
+                No test USDC in this wallet yet. Click “Get test funds” at the top.
               </Notice>
             </div>
           )}
