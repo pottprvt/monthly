@@ -38,7 +38,7 @@ export function shortAddress(addr: string, n = 4): string {
 export function timeUntil(unix: number, now: number): string {
   const diff = unix - now;
   if (diff <= 0) return "now";
-  if (diff < 60) return `in ${diff}s`;
+  if (diff < 120) return `in ${diff}s`;
   if (diff < 3600) return `in ${Math.ceil(diff / 60)} min`;
   if (diff < 86_400) return `in ${Math.round(diff / 3600)} h`;
   return `in ${Math.round(diff / 86_400)} days`;

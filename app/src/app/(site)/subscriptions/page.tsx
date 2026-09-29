@@ -13,7 +13,9 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConnectGate } from "@/components/wallet/connect-gate";
+import { useAutoCollect } from "@/hooks/use-auto-collect";
 import { type Membership, useMemberData } from "@/hooks/use-member-data";
+import { useNow } from "@/hooks/use-now";
 import { useProgram } from "@/hooks/use-program";
 import { useTx } from "@/hooks/use-tx";
 import {
@@ -46,7 +48,10 @@ function SubscriptionList() {
   const { publicKey } = useWallet();
   const program = useProgram();
   const { busy, run } = useTx();
-  const { loaded, failing, memberships, balance, limitLeft, now } = useMemberData();
+  const { loaded, failing, memberships, balance, limitLeft } = useMemberData();
+  const now = useNow();
+  const due = memberships.some((m) => m.plan.account.active && memberStatus(m.sub.account, now) === "due");
+  useAutoCollect(publicKey ? { subscriber: publicKey.toBase58() } : null, due);
 
   if (!loaded) return <Skeleton className="h-40 rounded-xl" />;
 

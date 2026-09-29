@@ -15,7 +15,6 @@ export type CreatorData = {
   subs: Subscription[];
   hasUsdc: boolean | null;
   nextPlanId: number;
-  now: number;
 };
 
 /** Everything the creator dashboard shows: the wallet's plans and their subscriptions. */
@@ -29,7 +28,6 @@ export function useCreatorData(): CreatorData {
     subs: [],
     hasUsdc: null,
     nextPlanId: 1,
-    now: 0,
   });
 
   const load = useCallback(async () => {
@@ -43,7 +41,7 @@ export function useCreatorData(): CreatorData {
       plans.length === 0 ? [] : (await fetchAllSubscriptions(program)).filter((s) => mine.has(s.account.plan.toBase58()));
     plans.sort((a, b) => b.account.createdAt.cmp(a.account.createdAt));
     subs.sort((a, b) => a.account.nextChargeAt.cmp(b.account.nextChargeAt));
-    setState({ loaded: true, plans, subs, hasUsdc: usdc !== null, nextPlanId, now: Math.floor(Date.now() / 1000) });
+    setState({ loaded: true, plans, subs, hasUsdc: usdc !== null, nextPlanId });
   }, [program, publicKey, connection]);
 
   const failing = usePoll(load);
