@@ -37,7 +37,7 @@ function Overview() {
 
   if (!loaded) return <Skeleton className="h-96 rounded-xl" />;
 
-  if (plans.length === 0) {
+  if (activePlans.size === 0 && subs.length === 0) {
     return (
       <>
         <PageHeader title="Overview" />
