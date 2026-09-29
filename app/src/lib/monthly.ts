@@ -51,7 +51,7 @@ export function isPaused(sub: SubscriptionAccount): boolean {
   return "paused" in sub.status;
 }
 
-/** Account sizes (discriminator + INIT_SPACE). Filters out accounts from older program versions. */
+/** Account sizes (discriminator + INIT_SPACE). Accounts from older program versions have other sizes. */
 const PLAN_SIZE = 354;
 const SUBSCRIPTION_SIZE = 138;
 
@@ -78,11 +78,25 @@ export function walletProgram(connection: Connection, wallet: AnchorWallet): Pro
   return new Program<Monthly>(idl as Monthly, provider);
 }
 
-export async function fetchPlansByMerchant(program: Program<Monthly>, merchant: PublicKey) {
-  return program.account.plan.all([
-    { dataSize: PLAN_SIZE },
-    { memcmp: { offset: 8, bytes: merchant.toBase58() } },
-  ]);
+/** Plans use sequential ids per merchant, so they load with one cheap multi-account read. */
+export const MAX_PLANS = 64;
+
+export async function fetchPlansByMerchant(
+  program: Program<Monthly>,
+  merchant: PublicKey,
+): Promise<{ plans: Keyed<PlanAccount>[]; nextPlanId: number }> {
+  const keys = Array.from({ length: MAX_PLANS }, (_, i) => planPda(merchant, new BN(i + 1)));
+  const infos = await program.provider.connection.getMultipleAccountsInfo(keys);
+  const plans: Keyed<PlanAccount>[] = [];
+  let nextPlanId = 0;
+  infos.forEach((info, i) => {
+    if (!info) {
+      if (nextPlanId === 0) nextPlanId = i + 1;
+    } else if (info.data.length === PLAN_SIZE) {
+      plans.push({ publicKey: keys[i], account: program.coder.accounts.decode("plan", info.data) });
+    }
+  });
+  return { plans, nextPlanId };
 }
 
 export async function fetchSubscriptionsBySubscriber(
@@ -92,13 +106,6 @@ export async function fetchSubscriptionsBySubscriber(
   return program.account.subscription.all([
     { dataSize: SUBSCRIPTION_SIZE },
     { memcmp: { offset: 8, bytes: subscriber.toBase58() } },
-  ]);
-}
-
-export async function fetchSubscriptionsByPlan(program: Program<Monthly>, plan: PublicKey) {
-  return program.account.subscription.all([
-    { dataSize: SUBSCRIPTION_SIZE },
-    { memcmp: { offset: 40, bytes: plan.toBase58() } },
   ]);
 }
 

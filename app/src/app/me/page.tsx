@@ -7,7 +7,7 @@ import { useCallback, useState } from "react";
 import { ConnectPrompt } from "@/components/ConnectPrompt";
 import { ArrowDownIcon, CoinsIcon, LockIcon, ShieldIcon, WalletIcon } from "@/components/icons";
 import { PlanAvatar } from "@/components/PlanAvatar";
-import { Badge, Button, Card, Empty, Progress, ResultNotice, formatDate, timeUntil } from "@/components/ui";
+import { Badge, Button, Card, Empty, Progress, ResultNotice, SlowNotice, formatDate, timeUntil } from "@/components/ui";
 import { formatUsdc, perInterval } from "@/lib/config";
 import { DEMO_PLAN } from "@/lib/demo";
 import { usePoll, useProgram, useTx } from "@/lib/hooks";
@@ -46,7 +46,7 @@ export default function MePage() {
       fetchSubscriptionsBySubscriber(program, publicKey),
       fetchUsdcAccount(connection, publicKey),
     ]);
-    const plans = await program.account.plan.fetchMultiple(subs.map((s) => s.account.plan)).catch(() => []);
+    const plans = subs.length === 0 ? [] : await program.account.plan.fetchMultiple(subs.map((s) => s.account.plan));
     const list = subs.map((sub, i) => ({
       sub,
       plan: plans[i] ? { publicKey: sub.account.plan, account: plans[i]! } : null,
@@ -59,7 +59,7 @@ export default function MePage() {
     setLoaded(true);
   }, [program, publicKey, connection]);
 
-  usePoll(load, 10_000);
+  const failing = usePoll(load);
   const { busy, result, run } = useTx(load);
 
   if (!publicKey) return <ConnectPrompt title="My subscriptions" text="Connect the wallet you subscribed with." />;
@@ -78,6 +78,7 @@ export default function MePage() {
         </div>
       </div>
 
+      {failing && <SlowNotice />}
       <ResultNotice result={result} />
 
       {!loaded ? (

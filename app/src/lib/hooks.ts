@@ -15,25 +15,56 @@ export function useProgram() {
   );
 }
 
-/** Runs `load` on mount and whenever it changes, optionally on an interval. */
-export function usePoll(load: () => Promise<void>, intervalMs?: number) {
+const REFRESH_EVENT = "monthly:refresh";
+
+/** Asks every mounted page to reload its data, e.g. after test funds arrived. */
+export function requestRefresh() {
+  window.dispatchEvent(new Event(REFRESH_EVENT));
+}
+
+/** Retries RPC reads that the public devnet endpoint rejects under load. */
+export async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
+  let last: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      last = err;
+      await new Promise((r) => setTimeout(r, 800 * 2 ** i));
+    }
+  }
+  throw last;
+}
+
+/**
+ * Runs `load` on mount, on refresh requests and on an interval while the tab is visible.
+ * Returns an error flag that is set while the last attempt failed; previous data stays on screen.
+ */
+export function usePoll(load: () => Promise<void>, intervalMs = 20_000) {
+  const [failing, setFailing] = useState(false);
   useEffect(() => {
     let active = true;
-    const run = () => {
-      if (active) void load();
+    const run = async () => {
+      if (!active || document.hidden) return;
+      try {
+        await withRetry(load);
+        if (active) setFailing(false);
+      } catch {
+        if (active) setFailing(true);
+      }
     };
-    run();
-    if (!intervalMs) {
-      return () => {
-        active = false;
-      };
-    }
+    void run();
     const t = window.setInterval(run, intervalMs);
+    window.addEventListener(REFRESH_EVENT, run);
+    document.addEventListener("visibilitychange", run);
     return () => {
       active = false;
       window.clearInterval(t);
+      window.removeEventListener(REFRESH_EVENT, run);
+      document.removeEventListener("visibilitychange", run);
     };
   }, [load, intervalMs]);
+  return failing;
 }
 
 export type TxResult = { ok: boolean; text: string; sig?: string };
@@ -55,7 +86,7 @@ export function useTx(onDone?: () => Promise<void> | void) {
         const sig = await sendTransaction(toTx(ixs, publicKey), connection);
         await connection.confirmTransaction(sig, "confirmed");
         setResult({ ok: true, text: success ?? `${label}: done.`, sig });
-        await onDone?.();
+        await withRetry(async () => onDone?.());
       } catch (err) {
         setResult({ ok: false, text: friendlyError(err) });
       } finally {

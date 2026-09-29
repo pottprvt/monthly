@@ -2,7 +2,7 @@
 
 import { BN } from "@coral-xyz/anchor";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { ArrowDownIcon, LockIcon } from "@/components/icons";
 import { PlanCard } from "@/components/PlanCard";
@@ -23,10 +23,12 @@ function safeParse(v: string): bigint | null {
 
 export function PlanEditor({
   existing,
+  nextPlanId,
   hasUsdc,
   onSaved,
 }: {
   existing?: Keyed<PlanAccount>;
+  nextPlanId: number;
   hasUsdc: boolean | null;
   onSaved: () => Promise<void>;
 }) {
@@ -39,6 +41,27 @@ export function PlanEditor({
   const [color, setColor] = useState(initialImage.kind === "preset" ? initialImage.color : PRESET_COLORS[0]);
   const [imageUrl, setImageUrl] = useState(initialImage.kind === "url" ? initialImage.url : "");
   const [useUrl, setUseUrl] = useState(initialImage.kind === "url");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  async function upload(file: File) {
+    setUploading(true);
+    setUploadError("");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) throw new Error(data.error ?? "Upload failed");
+      setImageUrl(data.url);
+      setUseUrl(true);
+    } catch (err) {
+      setUploadError((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
   const [price, setPrice] = useState(existing ? formatUsdc(existing.account.amount).replace(/,/g, "") : "10");
   const [interval, setInterval] = useState(existing?.account.intervalSeconds.toNumber() ?? INTERVALS[3].seconds);
   const { busy, result, run } = useTx(onSaved);
@@ -46,8 +69,9 @@ export function PlanEditor({
   const image = useUrl ? imageUrl.trim() : presetImage(emoji, color);
   const amount = safeParse(price);
   const oldAmount = existing ? BigInt(existing.account.amount.toString()) : null;
-  const urlInvalid = useUrl && imageUrl.trim() !== "" && !/^https:\/\/\S+$/.test(imageUrl.trim());
-  const canSave = !!publicKey && name.trim() !== "" && amount !== null && !urlInvalid && hasUsdc !== false;
+  const urlInvalid = useUrl && !/^https:\/\/\S+$/.test(imageUrl.trim());
+  const canSave =
+    !!publicKey && name.trim() !== "" && amount !== null && !urlInvalid && hasUsdc !== false && (!!existing || nextPlanId > 0);
 
   async function save() {
     if (!publicKey || amount === null) return;
@@ -66,7 +90,7 @@ export function PlanEditor({
           await createPlanIx(
             program,
             publicKey,
-            new BN(Date.now()),
+            new BN(nextPlanId),
             name.trim(),
             image,
             new BN(amount.toString()),
@@ -88,20 +112,28 @@ export function PlanEditor({
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Image</span>
-            <button className="text-xs text-accent hover:underline" onClick={() => setUseUrl(!useUrl)}>
-              {useUrl ? "Pick an icon instead" : "Use an image URL"}
-            </button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void upload(f);
+                e.target.value = "";
+              }}
+            />
+            <Button variant="ghost" size="sm" onClick={() => fileInput.current?.click()} disabled={uploading}>
+              {uploading ? "Uploading…" : "Upload image"}
+            </Button>
           </div>
+          {uploadError && <p className="text-xs text-danger">{uploadError}</p>}
           {useUrl ? (
-            <div>
-              <input
-                className={inputClass}
-                placeholder="https://…/logo.png"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                maxLength={160}
-              />
-              {urlInvalid && <p className="mt-1 text-xs text-danger">Must start with https://</p>}
+            <div className="flex items-center justify-between rounded-xl border border-line px-3 py-2 text-sm">
+              <span className="text-muted">Your image is used.</span>
+              <button className="text-xs text-accent hover:underline" onClick={() => setUseUrl(false)}>
+                Pick an icon instead
+              </button>
             </div>
           ) : (
             <div className="space-y-3">

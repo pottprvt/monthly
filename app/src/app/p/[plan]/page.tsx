@@ -10,7 +10,7 @@ import { useCallback, useMemo, useState } from "react";
 import { FaucetButton } from "@/components/FaucetButton";
 import { LockIcon, UsersIcon } from "@/components/icons";
 import { PlanCard } from "@/components/PlanCard";
-import { Address, Badge, Button, Empty, Progress, ResultNotice, formatDate, timeUntil } from "@/components/ui";
+import { Address, Badge, Button, Empty, Progress, ResultNotice, SlowNotice, formatDate, timeUntil } from "@/components/ui";
 import { formatUsdc, perInterval } from "@/lib/config";
 import { usePoll, useProgram, useTx } from "@/lib/hooks";
 import {
@@ -55,12 +55,12 @@ export default function PlanPage() {
 
   const load = useCallback(async () => {
     if (!planKey) return;
-    const p = await program.account.plan.fetchNullable(planKey).catch(() => null);
+    const p = await program.account.plan.fetchNullable(planKey);
     setPlan(p);
     setNow(Math.floor(Date.now() / 1000));
     if (!publicKey || !p) return;
     const [s, usdc] = await Promise.all([
-      program.account.subscription.fetchNullable(subscriptionPda(planKey, publicKey)).catch(() => null),
+      program.account.subscription.fetchNullable(subscriptionPda(planKey, publicKey)),
       fetchUsdcAccount(connection, publicKey),
     ]);
     setSub(s);
@@ -68,11 +68,13 @@ export default function PlanPage() {
     setRemaining(mandateRemaining(usdc));
   }, [planKey, program, publicKey, connection]);
 
-  usePoll(load, 10_000);
+  const failing = usePoll(load);
   const { busy, result, run } = useTx(load);
 
   if (!planKey || plan === null) return <Empty title="Plan not found">Check the link.</Empty>;
-  if (plan === undefined) return <p className="py-10 text-center text-sm text-muted">Loading…</p>;
+  if (plan === undefined) {
+    return failing ? <SlowNotice /> : <p className="py-10 text-center text-sm text-muted">Loading…</p>;
+  }
 
   const amount = BigInt(plan.amount.toString());
   const per = perInterval(plan.intervalSeconds.toNumber());
@@ -81,6 +83,11 @@ export default function PlanPage() {
 
   return (
     <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[1fr_400px]">
+      {failing && (
+        <div className="lg:col-span-2">
+          <SlowNotice />
+        </div>
+      )}
       <div className="space-y-4">
         <PlanCard
           large
@@ -167,7 +174,7 @@ export default function PlanPage() {
               ) : (
                 <div className="space-y-2 text-center">
                   <div className="text-sm text-muted">Not enough test USDC</div>
-                  <FaucetButton variant="inline" onFunded={() => void load()} />
+                  <FaucetButton variant="inline" />
                 </div>
               )}
               <div className="flex items-center justify-center gap-1.5 text-xs text-muted">
