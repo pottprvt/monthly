@@ -1,60 +1,171 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* Dark mode follows the operating system. */
+@custom-variant dark (@media (prefers-color-scheme: dark));
 
 :root {
-  --bg: #fafaf9;
-  --fg: #171717;
-  --muted: #6b6b6b;
-  --panel: #ffffff;
-  --panel-strong: #f0efed;
-  --line: #e4e2df;
-  --accent: #5b4bff;
-  --accent-strong: #4839e6;
-  --ok: #1a8f4e;
-  --warn: #b7791f;
-  --danger: #c53030;
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.16 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.16 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.16 0 0);
+  --primary: oklch(0.2 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.96 0 0);
+  --secondary-foreground: oklch(0.2 0 0);
+  --muted: oklch(0.965 0 0);
+  --muted-foreground: oklch(0.52 0 0);
+  --accent: oklch(0.96 0 0);
+  --accent-foreground: oklch(0.2 0 0);
+  --destructive: oklch(0.58 0.22 27);
+  --border: oklch(0.915 0 0);
+  --input: oklch(0.9 0 0);
+  --ring: oklch(0.7 0 0);
+  --radius: 0.625rem;
+
+  /* Brand and status */
+  --brand: oklch(0.56 0.16 252);
+  --brand-foreground: oklch(0.99 0 0);
+  --success: oklch(0.58 0.14 152);
+  --warning: oklch(0.68 0.15 70);
+
+  --sidebar: oklch(0.975 0 0);
+  --sidebar-foreground: oklch(0.2 0 0);
+  --sidebar-primary: oklch(0.2 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.935 0 0);
+  --sidebar-accent-foreground: oklch(0.2 0 0);
+  --sidebar-border: oklch(0.915 0 0);
+  --sidebar-ring: oklch(0.7 0 0);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0e0e10;
-    --fg: #ededed;
-    --muted: #9a9a9a;
-    --panel: #161618;
-    --panel-strong: #202024;
-    --line: #2a2a2e;
-    --accent: #7c6dff;
-    --accent-strong: #9385ff;
-    --ok: #3ccf7a;
-    --warn: #e0a83a;
-    --danger: #f06a6a;
+    --background: oklch(0.15 0 0);
+    --foreground: oklch(0.97 0 0);
+    --card: oklch(0.185 0 0);
+    --card-foreground: oklch(0.97 0 0);
+    --popover: oklch(0.2 0 0);
+    --popover-foreground: oklch(0.97 0 0);
+    --primary: oklch(0.95 0 0);
+    --primary-foreground: oklch(0.18 0 0);
+    --secondary: oklch(0.25 0 0);
+    --secondary-foreground: oklch(0.97 0 0);
+    --muted: oklch(0.23 0 0);
+    --muted-foreground: oklch(0.68 0 0);
+    --accent: oklch(0.25 0 0);
+    --accent-foreground: oklch(0.97 0 0);
+    --destructive: oklch(0.68 0.19 22);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 14%);
+    --ring: oklch(0.55 0 0);
+
+    --brand: oklch(0.68 0.14 252);
+    --brand-foreground: oklch(0.16 0 0);
+    --success: oklch(0.72 0.15 152);
+    --warning: oklch(0.8 0.14 75);
+
+    --sidebar: oklch(0.17 0 0);
+    --sidebar-foreground: oklch(0.97 0 0);
+    --sidebar-primary: oklch(0.95 0 0);
+    --sidebar-primary-foreground: oklch(0.18 0 0);
+    --sidebar-accent: oklch(0.24 0 0);
+    --sidebar-accent-foreground: oklch(0.97 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.55 0 0);
   }
 }
 
 @theme inline {
-  --color-bg: var(--bg);
-  --color-fg: var(--fg);
-  --color-muted: var(--muted);
-  --color-panel: var(--panel);
-  --color-panel-strong: var(--panel-strong);
-  --color-line: var(--line);
-  --color-accent: var(--accent);
-  --color-accent-strong: var(--accent-strong);
-  --color-ok: var(--ok);
-  --color-warn: var(--warn);
-  --color-danger: var(--danger);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-geist-sans);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
 }
 
-body {
-  background: var(--bg);
-  color: var(--fg);
-  font-family: var(--font-sans), system-ui, sans-serif;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans antialiased;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
-.wallet-adapter-button-trigger {
+/* Wallet adapter modal, aligned with the app's surfaces. */
+.wallet-adapter-modal-wrapper {
+  background: var(--popover) !important;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl) !important;
+  box-shadow: 0 20px 50px rgb(0 0 0 / 0.25) !important;
+}
+.wallet-adapter-modal-title {
+  color: var(--popover-foreground) !important;
+  font-family: var(--font-geist-sans) !important;
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+}
+.wallet-adapter-modal-wrapper .wallet-adapter-button {
+  color: var(--popover-foreground) !important;
+  font-family: var(--font-geist-sans) !important;
+  font-weight: 500 !important;
+  border-radius: var(--radius-md) !important;
+}
+.wallet-adapter-modal-wrapper .wallet-adapter-button:not([disabled]):hover {
   background: var(--accent) !important;
-  border-radius: 0.5rem !important;
-  height: 2.5rem !important;
-  font-size: 0.875rem !important;
+}
+.wallet-adapter-modal-button-close {
+  background: var(--muted) !important;
+}
+.wallet-adapter-modal-list-more,
+.wallet-adapter-modal-list .wallet-adapter-button span {
+  color: var(--muted-foreground) !important;
 }

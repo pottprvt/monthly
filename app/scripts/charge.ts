@@ -2,26 +2,16 @@
  * Charge job: collects every due subscription. Anyone may run it; the payer only covers fees.
  * Usage: FAUCET_KEYPAIR='[1,2,...]' npx tsx scripts/charge.ts
  */
-import { AnchorProvider, Wallet } from "@coral-xyz/anchor";
 import { Connection, Keypair, sendAndConfirmTransaction } from "@solana/web3.js";
 
 import { RPC_URL } from "../src/lib/config";
-import {
-  type Keyed,
-  type PlanAccount,
-  chargeIx,
-  fetchAllSubscriptions,
-  isPaused,
-  readProgram,
-  toTx,
-} from "../src/lib/monthly";
+import { chargeIx, fetchAllSubscriptions, fetchPlans, isPaused, readProgram, toTx, type Plan } from "../src/lib/chain";
 
 async function main() {
   const secret = process.env.FAUCET_KEYPAIR;
   if (!secret) throw new Error("FAUCET_KEYPAIR is not set");
   const payer = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(secret)));
   const connection = new Connection(RPC_URL, "confirmed");
-  const provider = new AnchorProvider(connection, new Wallet(payer), { commitment: "confirmed" });
   const program = readProgram(connection);
 
   const now = Math.floor(Date.now() / 1000);
@@ -31,12 +21,12 @@ async function main() {
   console.log(`${subs.length} due subscription(s), payer ${payer.publicKey.toBase58()}`);
   if (subs.length === 0) return;
 
-  const planKeys = [...new Set(subs.map((s) => s.account.plan.toBase58()))];
-  const planAccounts = await program.account.plan.fetchMultiple(planKeys);
-  const plans = new Map<string, Keyed<PlanAccount>>();
-  planKeys.forEach((k, i) => {
-    const acc = planAccounts[i];
-    if (acc) plans.set(k, { publicKey: subs.find((s) => s.account.plan.toBase58() === k)!.account.plan, account: acc });
+  const planKeys = [...new Map(subs.map((s) => [s.account.plan.toBase58(), s.account.plan])).values()];
+  const planAccounts = await fetchPlans(program, planKeys);
+  const plans = new Map<string, Plan>();
+  planKeys.forEach((key, i) => {
+    const account = planAccounts[i];
+    if (account) plans.set(key.toBase58(), { publicKey: key, account });
   });
 
   let ok = 0;
@@ -56,7 +46,6 @@ async function main() {
     }
   }
   console.log(`${ok}/${subs.length} charged`);
-  void provider;
 }
 
 main().catch((err) => {
