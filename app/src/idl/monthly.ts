@@ -14,6 +14,68 @@ export type Monthly = {
   },
   "instructions": [
     {
+      "name": "acceptPrice",
+      "discriminator": [
+        110,
+        25,
+        28,
+        175,
+        22,
+        221,
+        155,
+        107
+      ],
+      "accounts": [
+        {
+          "name": "subscriber",
+          "signer": true,
+          "relations": [
+            "subscription"
+          ]
+        },
+        {
+          "name": "plan",
+          "relations": [
+            "subscription"
+          ]
+        },
+        {
+          "name": "subscription",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  98,
+                  115,
+                  99,
+                  114,
+                  105,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "plan"
+              },
+              {
+                "kind": "account",
+                "path": "subscriber"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "cancel",
       "discriminator": [
         232,
@@ -265,6 +327,10 @@ export type Monthly = {
           "type": "string"
         },
         {
+          "name": "image",
+          "type": "string"
+        },
+        {
           "name": "amount",
           "type": "u64"
         },
@@ -464,6 +530,46 @@ export type Monthly = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "updatePlan",
+      "discriminator": [
+        119,
+        112,
+        58,
+        60,
+        76,
+        205,
+        1,
+        100
+      ],
+      "accounts": [
+        {
+          "name": "merchant",
+          "signer": true,
+          "relations": [
+            "plan"
+          ]
+        },
+        {
+          "name": "plan",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "image",
+          "type": "string"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -554,6 +660,16 @@ export type Monthly = {
       "code": 6011,
       "name": "tokenAccountMismatch",
       "msg": "Token account does not match the plan"
+    },
+    {
+      "code": 6012,
+      "name": "imageTooLong",
+      "msg": "Image reference is too long"
+    },
+    {
+      "code": 6013,
+      "name": "nothingToAccept",
+      "msg": "Plan price is not higher than the price you agreed to"
     }
   ],
   "types": [
@@ -580,7 +696,8 @@ export type Monthly = {
           {
             "name": "amount",
             "docs": [
-              "Amount per period, in the mint's base units."
+              "Current price per period, in the mint's base units. New subscribers agree to this price.",
+              "Existing subscribers are charged min(their agreed price, this price)."
             ],
             "type": "u64"
           },
@@ -616,6 +733,10 @@ export type Monthly = {
             "type": "string"
           },
           {
+            "name": "image",
+            "type": "string"
+          },
+          {
             "name": "bump",
             "type": "u8"
           }
@@ -641,6 +762,13 @@ export type Monthly = {
               "Token account the charges are pulled from. Fixed at subscription."
             ],
             "type": "pubkey"
+          },
+          {
+            "name": "agreedAmount",
+            "docs": [
+              "Price the subscriber signed for. A higher plan price only applies after `accept_price`."
+            ],
+            "type": "u64"
           },
           {
             "name": "nextChargeAt",

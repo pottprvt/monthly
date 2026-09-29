@@ -10,7 +10,7 @@ import {
   type Keyed,
   type PlanAccount,
   chargeIx,
-  fetchAllActiveSubscriptions,
+  fetchAllSubscriptions,
   isPaused,
   readProgram,
   toTx,
@@ -25,7 +25,7 @@ async function main() {
   const program = readProgram(connection);
 
   const now = Math.floor(Date.now() / 1000);
-  const subs = (await fetchAllActiveSubscriptions(program)).filter(
+  const subs = (await fetchAllSubscriptions(program)).filter(
     (s) => !isPaused(s.account) && s.account.nextChargeAt.toNumber() <= now,
   );
   console.log(`${subs.length} due subscription(s), payer ${payer.publicKey.toBase58()}`);

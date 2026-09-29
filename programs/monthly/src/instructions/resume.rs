@@ -43,7 +43,7 @@ pub fn handle_resume(ctx: Context<Resume>) -> Result<()> {
         ctx.accounts.subscription.status == SubscriptionStatus::Paused,
         MonthlyError::NotPaused
     );
-    let amount = ctx.accounts.plan.amount;
+    let amount = ctx.accounts.subscription.agreed_amount.min(ctx.accounts.plan.amount);
     check_mandate(&ctx.accounts.subscriber_token_account, &ctx.accounts.authority.key(), amount)
         .map_err(MonthlyError::from)?;
 

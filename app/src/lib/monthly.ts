@@ -20,9 +20,9 @@ import idl from "@/idl/monthly.json";
 import type { Monthly } from "@/idl/monthly";
 import { USDC_MINT } from "./config";
 
-export const PROGRAM_ID = new PublicKey(idl.address);
+const PROGRAM_ID = new PublicKey(idl.address);
 
-export const AUTHORITY = PublicKey.findProgramAddressSync(
+const AUTHORITY = PublicKey.findProgramAddressSync(
   [Buffer.from("authority")],
   PROGRAM_ID,
 )[0];
@@ -51,6 +51,23 @@ export function isPaused(sub: SubscriptionAccount): boolean {
   return "paused" in sub.status;
 }
 
+/** Account sizes (discriminator + INIT_SPACE). Filters out accounts from older program versions. */
+const PLAN_SIZE = 354;
+const SUBSCRIPTION_SIZE = 138;
+
+/** What the subscriber actually pays per period: the lower of agreed and current price. */
+export function effectivePrice(sub: SubscriptionAccount, plan: PlanAccount): bigint {
+  const agreed = BigInt(sub.agreedAmount.toString());
+  const current = BigInt(plan.amount.toString());
+  return agreed < current ? agreed : current;
+}
+
+/** A higher plan price the subscriber has not accepted yet, or null. */
+export function pendingIncrease(sub: SubscriptionAccount, plan: PlanAccount): bigint | null {
+  const current = BigInt(plan.amount.toString());
+  return current > BigInt(sub.agreedAmount.toString()) ? current : null;
+}
+
 /** Read-only program for pages that fetch without a wallet. */
 export function readProgram(connection: Connection): Program<Monthly> {
   return new Program<Monthly>(idl as Monthly, { connection });
@@ -62,7 +79,10 @@ export function walletProgram(connection: Connection, wallet: AnchorWallet): Pro
 }
 
 export async function fetchPlansByMerchant(program: Program<Monthly>, merchant: PublicKey) {
-  return program.account.plan.all([{ memcmp: { offset: 8, bytes: merchant.toBase58() } }]);
+  return program.account.plan.all([
+    { dataSize: PLAN_SIZE },
+    { memcmp: { offset: 8, bytes: merchant.toBase58() } },
+  ]);
 }
 
 export async function fetchSubscriptionsBySubscriber(
@@ -70,16 +90,20 @@ export async function fetchSubscriptionsBySubscriber(
   subscriber: PublicKey,
 ) {
   return program.account.subscription.all([
+    { dataSize: SUBSCRIPTION_SIZE },
     { memcmp: { offset: 8, bytes: subscriber.toBase58() } },
   ]);
 }
 
 export async function fetchSubscriptionsByPlan(program: Program<Monthly>, plan: PublicKey) {
-  return program.account.subscription.all([{ memcmp: { offset: 40, bytes: plan.toBase58() } }]);
+  return program.account.subscription.all([
+    { dataSize: SUBSCRIPTION_SIZE },
+    { memcmp: { offset: 40, bytes: plan.toBase58() } },
+  ]);
 }
 
-export async function fetchAllActiveSubscriptions(program: Program<Monthly>) {
-  return program.account.subscription.all();
+export async function fetchAllSubscriptions(program: Program<Monthly>) {
+  return program.account.subscription.all([{ dataSize: SUBSCRIPTION_SIZE }]);
 }
 
 export function usdcAta(owner: PublicKey): PublicKey {
@@ -108,11 +132,12 @@ export async function createPlanIx(
   merchant: PublicKey,
   planId: BN,
   name: string,
+  image: string,
   amount: BN,
   intervalSeconds: BN,
 ): Promise<TransactionInstruction> {
   return program.methods
-    .createPlan(planId, name, amount, intervalSeconds)
+    .createPlan(planId, name, image, amount, intervalSeconds)
     .accountsPartial({
       merchant,
       plan: planPda(merchant, planId),
@@ -202,6 +227,26 @@ export async function cancelIx(
     .cancel()
     .accountsPartial({ subscriber, plan, subscription })
     .instruction();
+}
+
+export async function updatePlanIx(
+  program: Program<Monthly>,
+  merchant: PublicKey,
+  plan: PublicKey,
+  name: string,
+  image: string,
+  amount: BN,
+): Promise<TransactionInstruction> {
+  return program.methods.updatePlan(name, image, amount).accountsPartial({ merchant, plan }).instruction();
+}
+
+export async function acceptPriceIx(
+  program: Program<Monthly>,
+  subscriber: PublicKey,
+  plan: PublicKey,
+  subscription: PublicKey,
+): Promise<TransactionInstruction> {
+  return program.methods.acceptPrice().accountsPartial({ subscriber, plan, subscription }).instruction();
 }
 
 export async function closePlanIx(

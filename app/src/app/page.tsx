@@ -1,115 +1,97 @@
 import Link from "next/link";
 
-import { Card } from "@/components/ui";
+import { ArrowDownIcon, ArrowRightIcon, CheckIcon, ClockIcon, LockIcon, XIcon } from "@/components/icons";
+import { PlanCard } from "@/components/PlanCard";
 import { DEMO_PLAN } from "@/lib/demo";
 
-const steps = [
-  {
-    title: "Create a plan",
-    text: "Name, price in USDC, billing interval. Charges can only ever land in the merchant's account.",
-  },
-  {
-    title: "Approve a mandate",
-    text: "The subscriber signs once: a spending ceiling for the Monthly program and the first payment. Nothing is prepaid.",
-  },
-  {
-    title: "Get paid on schedule",
-    text: "When a period is due, the program pulls exactly the plan amount. Cancel or revoke any time, from any wallet.",
-  },
-];
-
-const guarantees = [
-  "Only the plan amount, only once per period, only to the merchant.",
-  "The subscriber sets a hard ceiling and can revoke it in any wallet.",
-  "A failed payment is retried for three days, then the subscription pauses.",
-  "The rules live in the on-chain program, not on this website.",
+const features = [
+  { icon: <CheckIcon />, title: "Approve once", text: "One signature. No monthly clicking." },
+  { icon: <ClockIcon />, title: "Paid on time", text: "Collected automatically when due." },
+  { icon: <LockIcon />, title: "No surprise hikes", text: "Higher prices need your signature." },
+  { icon: <XIcon />, title: "Cancel anytime", text: "One click, or revoke in any wallet." },
 ];
 
 export default function Home() {
   return (
-    <div className="space-y-16">
-      <section className="grid items-center gap-10 lg:grid-cols-[1.2fr_1fr]">
-        <div className="space-y-5">
-          <span className="inline-flex rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
-            Recurring payments on Solana
-          </span>
-          <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
-            Direct debit for USDC.
+    <div className="space-y-20">
+      <section className="grid items-center gap-12 lg:grid-cols-[1.15fr_1fr]">
+        <div className="space-y-6">
+          <h1 className="text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl">
+            Subscriptions
+            <br />
+            <span className="text-accent">on Solana.</span>
           </h1>
-          <p className="max-w-xl text-lg text-muted">
-            Solana has no way to charge someone every month. Monthly adds it: subscribers approve a
-            mandate once, the program collects when a payment is due, and either side can walk away
-            any time.
-          </p>
-          <div className="flex flex-wrap gap-3 pt-2">
+          <p className="max-w-md text-xl text-muted">Approve once. Pay on schedule. Cancel anytime.</p>
+          <div className="flex flex-wrap gap-3">
             <Link
               href="/merchant"
-              className="rounded-lg bg-accent px-5 py-3 text-sm font-medium text-white hover:bg-accent-strong"
+              className="inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-3.5 font-medium text-white hover:bg-accent-strong"
             >
-              I sell a subscription
+              Create a plan <ArrowRightIcon size={16} />
             </Link>
             <Link
-              href="/me"
-              className="rounded-lg border border-line bg-panel px-5 py-3 text-sm font-medium hover:bg-panel-strong"
+              href={`/p/${DEMO_PLAN}`}
+              className="rounded-xl border border-line bg-panel px-6 py-3.5 font-medium hover:bg-panel-strong"
             >
-              My subscriptions
+              Try the demo
             </Link>
           </div>
         </div>
 
-        <Card className="space-y-4 p-6">
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wide text-muted">Live demo on devnet</span>
-            <span className="rounded-full bg-ok/15 px-2 py-0.5 text-xs font-medium text-ok">active</span>
+        <div className="relative">
+          <div className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-gradient-to-br from-accent/20 via-transparent to-ok/10 blur-2xl" />
+          <PlanCard
+            large
+            plan={{ name: "Alpha Signals", image: "preset:📈:#7c6dff", price: "1", per: "/ min" }}
+            badge={<span className="rounded-full bg-ok/15 px-2.5 py-1 text-xs font-medium text-ok">live demo</span>}
+            footer={
+              <Link
+                href={`/p/${DEMO_PLAN}`}
+                className="block rounded-xl bg-accent py-3 text-center text-sm font-medium text-white hover:bg-accent-strong"
+              >
+                Subscribe
+              </Link>
+            }
+          />
+        </div>
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {features.map((f) => (
+          <div key={f.title} className="rounded-2xl border border-line bg-panel p-5">
+            <div className="mb-4 grid h-10 w-10 place-items-center rounded-xl bg-accent/10 text-accent">{f.icon}</div>
+            <div className="font-medium">{f.title}</div>
+            <div className="mt-1 text-sm text-muted">{f.text}</div>
+          </div>
+        ))}
+      </section>
+
+      <section className="rounded-3xl border border-line bg-panel p-8">
+        <div className="grid gap-8 md:grid-cols-3">
+          <div>
+            <div className="text-sm text-muted">Price goes up</div>
+            <div className="mt-2 flex items-center gap-2 text-2xl font-semibold">
+              10 <ArrowRightIcon className="text-muted" /> 12 <span className="text-base text-muted">USDC</span>
+            </div>
+            <div className="mt-2 inline-flex items-center gap-1.5 text-sm text-warn">
+              <LockIcon size={14} /> you keep paying 10 until you accept
+            </div>
           </div>
           <div>
-            <div className="text-xl font-semibold">Demo: Alpha Signals</div>
-            <div className="text-muted">1.00 test USDC every minute</div>
+            <div className="text-sm text-muted">Price goes down</div>
+            <div className="mt-2 flex items-center gap-2 text-2xl font-semibold">
+              10 <ArrowRightIcon className="text-muted" /> 8 <span className="text-base text-muted">USDC</span>
+            </div>
+            <div className="mt-2 inline-flex items-center gap-1.5 text-sm text-accent">
+              <ArrowDownIcon size={14} /> you pay 8 from the next payment
+            </div>
           </div>
-          <p className="text-sm text-muted">
-            Subscribe with a devnet wallet and watch the charges arrive minute by minute. Use{" "}
-            <span className="text-fg">Get test funds</span> at the top for free test USDC.
-          </p>
-          <Link
-            href={`/p/${DEMO_PLAN}`}
-            className="block rounded-lg bg-accent px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-accent-strong"
-          >
-            Try the demo plan →
-          </Link>
-        </Card>
-      </section>
-
-      <section>
-        <h2 className="mb-5 text-xl font-semibold">How it works</h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          {steps.map((s, i) => (
-            <Card key={s.title}>
-              <div className="mb-3 grid h-8 w-8 place-items-center rounded-full bg-accent/10 text-sm font-semibold text-accent">
-                {i + 1}
-              </div>
-              <h3 className="mb-1 font-medium">{s.title}</h3>
-              <p className="text-sm text-muted">{s.text}</p>
-            </Card>
-          ))}
+          <div>
+            <div className="text-sm text-muted">Enforced by</div>
+            <div className="mt-2 text-2xl font-semibold">the program</div>
+            <div className="mt-2 text-sm text-muted">Not by this website. Not by the merchant.</div>
+          </div>
         </div>
-      </section>
-
-      <section className="grid gap-8 md:grid-cols-2">
-        <div>
-          <h2 className="mb-3 text-xl font-semibold">Why it is safe</h2>
-          <p className="text-sm text-muted">
-            Monthly uses the token program&apos;s own delegate feature. The subscriber keeps the
-            funds; the program can only move what the plan says, when the plan says.
-          </p>
-        </div>
-        <ul className="space-y-3">
-          {guarantees.map((g) => (
-            <li key={g} className="flex gap-3 text-sm">
-              <span className="mt-0.5 text-ok">✓</span>
-              <span>{g}</span>
-            </li>
-          ))}
-        </ul>
       </section>
     </div>
   );

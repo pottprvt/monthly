@@ -12,7 +12,7 @@ export const USDC_MINT = new PublicKey(
 );
 export const USDC_DECIMALS = 6;
 
-export const EXPLORER = "https://explorer.solana.com";
+const EXPLORER = "https://explorer.solana.com";
 
 export function explorerTx(sig: string) {
   return `${EXPLORER}/tx/${sig}?cluster=devnet`;
@@ -22,26 +22,35 @@ export function explorerAddress(addr: string) {
   return `${EXPLORER}/address/${addr}?cluster=devnet`;
 }
 
-export const INTERVALS: { label: string; seconds: number }[] = [
-  { label: "every minute (demo)", seconds: 60 },
-  { label: "hourly", seconds: 3600 },
-  { label: "daily", seconds: 86400 },
-  { label: "weekly", seconds: 7 * 86400 },
-  { label: "monthly", seconds: 30 * 86400 },
+export const INTERVALS: { label: string; short: string; seconds: number }[] = [
+  { label: "Minute", short: "min", seconds: 60 },
+  { label: "Day", short: "day", seconds: 86400 },
+  { label: "Week", short: "week", seconds: 7 * 86400 },
+  { label: "Month", short: "month", seconds: 30 * 86400 },
 ];
 
+/** "/ month", "/ min", ... */
+export function perInterval(seconds: number): string {
+  const hit = INTERVALS.find((i) => i.seconds === seconds);
+  if (hit) return `/ ${hit.short}`;
+  if (seconds % 86400 === 0) return `/ ${seconds / 86400} days`;
+  if (seconds % 3600 === 0) return `/ ${seconds / 3600} h`;
+  return `/ ${seconds}s`;
+}
+
+/** "every month", "every minute", ... */
 export function intervalLabel(seconds: number): string {
   const hit = INTERVALS.find((i) => i.seconds === seconds);
-  if (hit) return hit.label.replace(" (demo)", "");
+  if (hit) return `every ${hit.label.toLowerCase()}`;
   if (seconds % 86400 === 0) return `every ${seconds / 86400} days`;
   if (seconds % 3600 === 0) return `every ${seconds / 3600} hours`;
   return `every ${seconds} seconds`;
 }
 
-export function formatUsdc(baseUnits: bigint | number): string {
-  const n = Number(baseUnits) / 10 ** USDC_DECIMALS;
+export function formatUsdc(baseUnits: bigint | number | { toString(): string }): string {
+  const n = Number(typeof baseUnits === "object" ? baseUnits.toString() : baseUnits) / 10 ** USDC_DECIMALS;
   return n.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
+    minimumFractionDigits: n % 1 === 0 ? 0 : 2,
     maximumFractionDigits: 2,
   });
 }

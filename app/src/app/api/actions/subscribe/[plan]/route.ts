@@ -39,9 +39,9 @@ export async function GET(req: Request, ctx: Ctx) {
   const amount = formatUsdc(plan.amount.toString());
   const body: ActionGetResponse = {
     type: "action",
-    icon: `${origin}/icon.png`,
+    icon: /^https:\/\//.test(plan.image) ? plan.image : `${origin}/icon.png`,
     title: plan.name,
-    description: `${amount} USDC ${intervalLabel(plan.intervalSeconds.toNumber())}. Approve a mandate once; the plan amount is pulled when due. Cancel any time.`,
+    description: `${amount} USDC ${intervalLabel(plan.intervalSeconds.toNumber())}. Approve once, cancel anytime. No price increase without your signature.`,
     label: plan.active ? `Subscribe for ${amount} USDC` : "Plan closed",
     disabled: !plan.active,
     links: {
@@ -53,7 +53,7 @@ export async function GET(req: Request, ctx: Ctx) {
           parameters: [
             {
               name: "periods",
-              label: "Mandate ceiling in periods (e.g. 12)",
+              label: "Spending limit in periods (e.g. 12)",
               type: "number",
               min: 1,
               max: 120,

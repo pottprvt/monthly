@@ -45,7 +45,7 @@ pub fn handle_charge(ctx: Context<Charge>) -> Result<()> {
     require!(sub.status == SubscriptionStatus::Active, MonthlyError::NotActive);
     require!(now >= sub.next_charge_at, MonthlyError::NotDue);
 
-    let amount = ctx.accounts.plan.amount;
+    let amount = ctx.accounts.subscription.agreed_amount.min(ctx.accounts.plan.amount);
     if let Err(blocker) = check_mandate(
         &ctx.accounts.subscriber_token_account,
         &ctx.accounts.authority.key(),
