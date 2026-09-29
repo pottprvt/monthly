@@ -61,4 +61,8 @@ pub mod monthly {
     pub fn close_plan(ctx: Context<ClosePlan>) -> Result<()> {
         instructions::close_plan::handle_close_plan(ctx)
     }
+
+    pub fn delete_plan(ctx: Context<DeletePlan>) -> Result<()> {
+        instructions::delete_plan::handle_delete_plan(ctx)
+    }
 }

@@ -30,4 +30,6 @@ pub enum MonthlyError {
     ImageTooLong,
     #[msg("Plan price is not higher than the price you agreed to")]
     NothingToAccept,
+    #[msg("Plan still has members; they must cancel before it can be deleted")]
+    PlanHasMembers,
 }

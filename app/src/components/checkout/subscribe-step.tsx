@@ -8,8 +8,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useTestFunds } from "@/components/wallet/use-test-funds";
 import { useProgram } from "@/hooks/use-program";
 import { useTx } from "@/hooks/use-tx";
-import { subscribeIxs, type PlanAccount } from "@/lib/chain";
-import { formatUsdc, perInterval } from "@/lib/format";
+import { SUBSCRIPTION_DEPOSIT_LAMPORTS, subscribeIxs, type PlanAccount } from "@/lib/chain";
+import { formatSol, formatUsdc, perInterval } from "@/lib/format";
 
 const LIMITS = [3, 6, 12, 24];
 
@@ -72,6 +72,10 @@ export function SubscribeStep({
           <dd className="tabular-nums">
             {formatUsdc(amount)} USDC {per}
           </dd>
+        </div>
+        <div className="flex justify-between px-3 py-2">
+          <dt className="text-muted-foreground">Deposit, returned when you cancel</dt>
+          <dd className="tabular-nums">{formatSol(SUBSCRIPTION_DEPOSIT_LAMPORTS)} SOL</dd>
         </div>
       </dl>
 

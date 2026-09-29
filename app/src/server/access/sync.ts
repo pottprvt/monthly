@@ -7,7 +7,15 @@ import { Connection, PublicKey } from "@solana/web3.js";
 
 import { fetchPlan, isPaused, readProgram, type MonthlyProgram } from "@/lib/chain";
 import { removeMember, sendMessage, telegramConfigured } from "@/integrations/telegram/api";
-import { getGrant, getTelegramConnection, grantsForPlan, setGrant, storeConfigured, telegramPlans } from "@/server/store";
+import {
+  connectionIsCurrent,
+  getGrant,
+  getTelegramConnection,
+  grantsForPlan,
+  setGrant,
+  storeConfigured,
+  telegramPlans,
+} from "@/server/store";
 
 const SUBSCRIPTION_SIZE = 138;
 
@@ -25,6 +33,7 @@ export async function syncPlanAccess(connection: Connection, plan: string, only?
   if (!conn || conn.status !== "connected") return result;
   const program = readProgram(connection);
   const planAccount = await fetchPlan(program, new PublicKey(plan));
+  if (planAccount && !connectionIsCurrent(conn, planAccount.createdAt.toNumber())) return result;
   const subs = only ?? (await grantsForPlan(plan));
 
   for (const subscription of subs) {

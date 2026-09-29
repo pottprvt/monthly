@@ -17,8 +17,8 @@ import { WalletButton } from "@/components/wallet/wallet-button";
 import { useCreatorData } from "@/hooks/use-creator-data";
 import { useProgram } from "@/hooks/use-program";
 import { useTx } from "@/hooks/use-tx";
-import { createPlanIx, planPda } from "@/lib/chain";
-import { formatUsdc, parseUsdc, perInterval, shortAddress } from "@/lib/format";
+import { PLAN_DEPOSIT_LAMPORTS, createPlanIx, planPda } from "@/lib/chain";
+import { formatSol, formatUsdc, parseUsdc, perInterval, shortAddress } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const STEPS = ["Plan", "Community", "Share"] as const;
@@ -154,6 +154,10 @@ function PlanStep({ onCreated }: { onCreated: (plan: string) => void }) {
         >
           {busy ? "Confirm in your wallet…" : "Create plan"}
         </Button>
+        <p className="text-xs text-muted-foreground">
+          Solana holds a deposit of {formatSol(PLAN_DEPOSIT_LAMPORTS)} SOL for storing your plan on-chain. You get it back
+          when you delete the plan.
+        </p>
       </div>
       <div className="lg:sticky lg:top-10 lg:self-start">
         <div className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">Preview</div>

@@ -65,6 +65,14 @@ export type TelegramConnection = {
 export async function getTelegramConnection(plan: string): Promise<TelegramConnection | null> {
   return redis().get<TelegramConnection>(`conn:${plan}:telegram`);
 }
+
+/**
+ * Plan ids are reused after a plan is deleted, so a stored connection only belongs to the current
+ * plan if it was made after that plan was created.
+ */
+export function connectionIsCurrent(conn: TelegramConnection, planCreatedAt: number): boolean {
+  return conn.connectedAt >= planCreatedAt * 1000;
+}
 export async function setTelegramConnection(plan: string, conn: TelegramConnection) {
   await Promise.all([
     redis().set(`conn:${plan}:telegram`, conn),

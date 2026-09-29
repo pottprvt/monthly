@@ -31,6 +31,8 @@ Set Phantom, Solflare or Backpack to devnet. Test funds come from the app itself
 3. **Charges**: once a period has passed, anyone may call `charge`; the program checks the limit and balance and moves exactly the price to the creator. A charge that cannot be covered is retried during a three-day grace period, then the subscription pauses.
 4. **Member stays in control**: cancel any time (account closed, rent returned), revoke the delegate in any wallet, resume a paused subscription once funds are back.
 
+Storing a plan or a subscription on Solana needs a refundable deposit (rent): about 0.0024 SOL per plan, returned by `delete_plan` once it has no members, and about 0.0014 SOL per subscription, returned on cancel. The app shows both before signing.
+
 Collection is triggered by the app whenever a payment is due while someone has it open (`POST /api/collect`), and by a scheduled job every five minutes (`POST /api/cron/charge`, called from a GitHub Action). Both only pay the transaction fee; the program decides what moves.
 
 ### Price rule
@@ -79,13 +81,14 @@ Example transactions from the devnet end-to-end run (`app/scripts/e2e.ts`):
 
 ## Program
 
-Anchor 1.2 (`programs/monthly`), 12 LiteSVM integration tests.
+Anchor 1.2 (`programs/monthly`), 13 LiteSVM integration tests.
 
 | Instruction | Signer | Effect |
 |---|---|---|
 | `create_plan(plan_id, name, image, amount, interval_seconds)` | creator | creates the `Plan` PDA `["plan", creator, plan_id]` |
 | `update_plan(name, image, amount)` | creator | edits the listing; cuts apply to all, increases only to new or accepting members |
 | `close_plan()` | creator | stops new subscriptions and charges |
+| `delete_plan()` | creator | removes a plan without members and returns its storage deposit |
 | `subscribe()` | member | creates the `Subscription` PDA `["subscription", plan, member]` with the agreed price, collects period 1 |
 | `charge()` | anyone | collects one period if due; pauses after the grace period if blocked |
 | `accept_price()` | member | agrees to the plan's current, higher price |
@@ -150,7 +153,7 @@ npx tsx scripts/telegram-webhook.ts https://monthly-sol.vercel.app
 
 The scheduled job (`.github/workflows/charge.yml`) needs one repository secret, `CRON_TOKEN` = HMAC-SHA256 of `monthly-cron` with `SESSION_SECRET` (hex).
 
-Scripts (`app/scripts`): `e2e.ts` runs a full plan → subscribe → charge → cancel cycle on devnet; `telegram-webhook.ts` registers the bot webhook; `create-test-mint.ts` created the test USDC mint.
+Scripts (`app/scripts`): `e2e.ts` runs a full plan → subscribe → charge → cancel → delete cycle on devnet; `telegram-webhook.ts` registers the bot webhook; `create-test-mint.ts` created the test USDC mint.
 
 ## Repository layout
 

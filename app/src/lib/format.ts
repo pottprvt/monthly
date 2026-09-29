@@ -31,6 +31,11 @@ export function parseUsdc(input: string): bigint | null {
   return value > 0n ? value : null;
 }
 
+/** Lamports as SOL with up to 4 decimals, e.g. "0.0024". */
+export function formatSol(lamports: number): string {
+  return (lamports / 1e9).toLocaleString("en-US", { maximumFractionDigits: 4 });
+}
+
 export function shortAddress(addr: string, n = 4): string {
   return `${addr.slice(0, n)}…${addr.slice(-n)}`;
 }

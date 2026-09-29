@@ -341,6 +341,34 @@ export type Monthly = {
       ]
     },
     {
+      "name": "deletePlan",
+      "discriminator": [
+        41,
+        111,
+        169,
+        210,
+        93,
+        141,
+        108,
+        53
+      ],
+      "accounts": [
+        {
+          "name": "merchant",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "plan"
+          ]
+        },
+        {
+          "name": "plan",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "resume",
       "discriminator": [
         1,
@@ -670,6 +698,11 @@ export type Monthly = {
       "code": 6013,
       "name": "nothingToAccept",
       "msg": "Plan price is not higher than the price you agreed to"
+    },
+    {
+      "code": 6014,
+      "name": "planHasMembers",
+      "msg": "Plan still has members; they must cancel before it can be deleted"
     }
   ],
   "types": [

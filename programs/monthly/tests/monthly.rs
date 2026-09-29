@@ -262,6 +262,19 @@ impl World {
         self.send(ix, &signer)
     }
 
+    fn delete_plan(&mut self, signer: &Keypair) -> Result<(), FailedTransactionMetadata> {
+        let ix = Instruction::new_with_bytes(
+            self.program_id,
+            &monthly::instruction::DeletePlan {}.data(),
+            monthly::accounts::DeletePlan {
+                merchant: signer.pubkey(),
+                plan: self.plan,
+            }
+            .to_account_metas(None),
+        );
+        self.send(ix, signer)
+    }
+
     fn close_plan(&mut self, signer: &Keypair) -> Result<(), FailedTransactionMetadata> {
         let ix = Instruction::new_with_bytes(
             self.program_id,
@@ -540,4 +553,26 @@ fn only_merchant_updates_plan_and_listing_is_validated() {
     assert_eq!(plan.name, "Renamed");
     assert_eq!(plan.image, "https://example.com/logo.png");
     assert_eq!(plan.interval_seconds, INTERVAL, "interval never changes");
+}
+
+#[test]
+fn delete_plan_requires_no_members_and_refunds_deposit() {
+    let mut w = World::new();
+    w.create_plan().unwrap();
+    w.approve(12 * PLAN_AMOUNT);
+    w.subscribe().unwrap();
+
+    let merchant = w.merchant.insecure_clone();
+    let stranger = w.anyone.insecure_clone();
+    assert_error(w.delete_plan(&merchant), MonthlyError::PlanHasMembers);
+
+    w.cancel().unwrap();
+    assert!(w.delete_plan(&stranger).is_err(), "only the merchant may delete");
+
+    let deposit = w.svm.get_balance(&w.plan).unwrap();
+    let before = w.svm.get_balance(&merchant.pubkey()).unwrap();
+    w.delete_plan(&merchant).unwrap();
+    assert!(w.svm.get_account(&w.plan).map_or(true, |a| a.data.is_empty()), "plan account is closed");
+    let after = w.svm.get_balance(&merchant.pubkey()).unwrap();
+    assert!(after + 10_000 >= before + deposit, "deposit returned minus the transaction fee");
 }
