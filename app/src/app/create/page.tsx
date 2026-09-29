@@ -17,10 +17,11 @@ import { ConnectGate } from "@/components/wallet/connect-gate";
 import { useTestFunds } from "@/components/wallet/use-test-funds";
 import { WalletButton } from "@/components/wallet/wallet-button";
 import { useCreatorData } from "@/hooks/use-creator-data";
+import { useDeposit } from "@/hooks/use-deposit";
 import { useProgram } from "@/hooks/use-program";
 import { useTelegramStatus } from "@/hooks/use-telegram";
 import { useTx } from "@/hooks/use-tx";
-import { PLAN_DEPOSIT_LAMPORTS, createPlanIx, fetchPlan, planPda } from "@/lib/chain";
+import { PLAN_SIZE, createPlanIx, fetchPlan, planPda } from "@/lib/chain";
 import { formatSol, formatUsdc, parseUsdc, perInterval, shortAddress } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -167,6 +168,7 @@ function PlanStep({ onCreated }: { onCreated: (plan: string) => void }) {
   const { loaded, hasUsdc, nextPlanId } = useCreatorData();
   const [draft, setDraft] = useState<PlanDraft>(EMPTY_DRAFT);
   const amount = parseUsdc(draft.price);
+  const deposit = useDeposit(PLAN_SIZE);
 
   async function create() {
     if (!publicKey || amount === null) return;
@@ -203,8 +205,8 @@ function PlanStep({ onCreated }: { onCreated: (plan: string) => void }) {
           {busy ? "Confirm in your wallet…" : "Create plan"}
         </Button>
         <p className="text-xs text-muted-foreground">
-          Solana holds a deposit of {formatSol(PLAN_DEPOSIT_LAMPORTS)} SOL for storing your plan on-chain. You get it back
-          when you delete the plan.
+          Solana holds a small deposit{deposit !== null ? ` of ${formatSol(deposit)} SOL` : ""} for storing your plan
+          on-chain. You get it back when you delete the plan.
         </p>
       </div>
       <div className="lg:sticky lg:top-10 lg:self-start">

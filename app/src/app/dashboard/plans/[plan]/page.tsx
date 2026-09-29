@@ -18,11 +18,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ConnectGate } from "@/components/wallet/connect-gate";
 import { useAutoCollect } from "@/hooks/use-auto-collect";
 import { useCreatorData } from "@/hooks/use-creator-data";
+import { useDeposit } from "@/hooks/use-deposit";
 import { refreshAccess } from "@/hooks/use-telegram";
 import { useNow } from "@/hooks/use-now";
 import { useProgram } from "@/hooks/use-program";
 import { useTx } from "@/hooks/use-tx";
-import { PLAN_DEPOSIT_LAMPORTS, closePlanIx, deletePlanIx, memberStatus } from "@/lib/chain";
+import { PLAN_SIZE, closePlanIx, deletePlanIx, memberStatus } from "@/lib/chain";
 import { formatSol, formatUsdc, perInterval } from "@/lib/format";
 
 export default function PlanDetailPage() {
@@ -53,6 +54,8 @@ function PlanDetail() {
   const { busy, run } = useTx();
   const { loaded, failing, plans, subs } = useCreatorData();
   const now = useNow();
+  const deposit = useDeposit(PLAN_SIZE);
+  const depositText = deposit !== null ? `${formatSol(deposit)} SOL deposit` : "deposit";
   const plan = plans.find((p) => p.publicKey.toBase58() === param);
   const due = !!plan?.account.active && subs.some((s) => s.account.plan.toBase58() === param && memberStatus(s.account, now) === "due");
   useAutoCollect(plan ? { plan: param } : null, due);
@@ -101,7 +104,7 @@ function PlanDetail() {
                 variant="destructive"
                 disabled={busy !== null}
                 onClick={() => {
-                  if (!confirm(`Delete “${a.name}”? Your deposit of ${formatSol(PLAN_DEPOSIT_LAMPORTS)} SOL is returned.`)) return;
+                  if (!confirm(`Delete “${a.name}”? Your ${depositText} is returned.`)) return;
                   void run(
                     "delete",
                     async () => [await deletePlanIx(program, publicKey!, plan.publicKey)],
@@ -136,8 +139,7 @@ function PlanDetail() {
 
       {!a.active && !a.subscriberCount.isZero() && (
         <p className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
-          This plan is closed. You can delete it and get your {formatSol(PLAN_DEPOSIT_LAMPORTS)} SOL deposit back once all
-          members have cancelled.
+          This plan is closed. You can delete it and get your {depositText} back once all members have cancelled.
         </p>
       )}
 

@@ -6,9 +6,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useTestFunds } from "@/components/wallet/use-test-funds";
+import { useDeposit } from "@/hooks/use-deposit";
 import { useProgram } from "@/hooks/use-program";
 import { useTx } from "@/hooks/use-tx";
-import { SUBSCRIPTION_DEPOSIT_LAMPORTS, subscribeIxs, type PlanAccount } from "@/lib/chain";
+import { SUBSCRIPTION_SIZE, subscribeIxs, type PlanAccount } from "@/lib/chain";
 import { formatSol, formatUsdc, perInterval } from "@/lib/format";
 
 const LIMITS = [3, 6, 12, 24];
@@ -38,7 +39,8 @@ export function SubscribeStep({
   const per = perInterval(plan.intervalSeconds.toNumber());
   const limit = limitLeft + amount * BigInt(periods);
   const enoughUsdc = balance !== null && balance >= amount;
-  const enoughSol = sol >= SUBSCRIPTION_DEPOSIT_LAMPORTS + 20_000; // deposit plus fees
+  const deposit = useDeposit(SUBSCRIPTION_SIZE);
+  const enoughSol = sol >= (deposit ?? 2_000_000) + 20_000; // deposit plus fees
   const canPay = enoughUsdc && enoughSol;
 
   return (
@@ -77,10 +79,14 @@ export function SubscribeStep({
             {formatUsdc(amount)} USDC {per}
           </dd>
         </div>
-        <div className="flex justify-between px-3 py-2">
-          <dt className="text-muted-foreground">Deposit, returned when you cancel</dt>
-          <dd className="tabular-nums">{formatSol(SUBSCRIPTION_DEPOSIT_LAMPORTS)} SOL</dd>
-        </div>
+        {deposit !== null && (
+          <div className="flex justify-between gap-3 px-3 py-2">
+            <dt className="text-muted-foreground" title="Returned to you when you cancel">
+              Refundable deposit
+            </dt>
+            <dd className="whitespace-nowrap tabular-nums">{formatSol(deposit)} SOL</dd>
+          </div>
+        )}
       </dl>
 
       {canPay ? (
@@ -108,7 +114,7 @@ export function SubscribeStep({
           </Button>
         </div>
       )}
-      <p className="text-center text-xs text-muted-foreground">One signature. Cancel anytime.</p>
+      <p className="text-center text-xs text-muted-foreground">One signature. Cancel anytime, the deposit comes back.</p>
     </div>
   );
 }
