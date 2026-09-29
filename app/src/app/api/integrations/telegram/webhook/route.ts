@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
+import { sendMessage } from "@/integrations/telegram/api";
 import { handleUpdate, type Update } from "@/integrations/telegram/bot";
 
 function validSecret(given: string | null): boolean {
@@ -21,8 +22,12 @@ export async function POST(req: Request) {
   try {
     await handleUpdate(update, new URL(req.url).origin);
   } catch (err) {
-    // Acknowledge anyway so Telegram does not retry a failing update forever; the error is logged.
+    // Acknowledge anyway so Telegram does not retry a failing update forever. Tell the chat what went wrong.
     console.error("telegram update failed", update.update_id, err);
+    const chatId = update.message?.chat.id;
+    if (chatId) {
+      await sendMessage(chatId, `Something went wrong: ${(err as Error).message}. Please try again from Monthly.`).catch(() => undefined);
+    }
   }
   return NextResponse.json({ ok: true });
 }
