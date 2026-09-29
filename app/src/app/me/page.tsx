@@ -5,32 +5,24 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import { ConnectPrompt } from "@/components/ConnectPrompt";
-import {
-  Address,
-  Badge,
-  Button,
-  Card,
-  Empty,
-  Notice,
-  PageHeader,
-  Progress,
-  ResultNotice,
-  Stat,
-  formatDate,
-  timeUntil,
-} from "@/components/ui";
-import { formatUsdc, intervalLabel } from "@/lib/config";
+import { ArrowDownIcon, CoinsIcon, LockIcon, ShieldIcon, WalletIcon } from "@/components/icons";
+import { PlanAvatar } from "@/components/PlanAvatar";
+import { Badge, Button, Card, Empty, Progress, ResultNotice, formatDate, timeUntil } from "@/components/ui";
+import { formatUsdc, perInterval } from "@/lib/config";
 import { DEMO_PLAN } from "@/lib/demo";
 import { usePoll, useProgram, useTx } from "@/lib/hooks";
 import {
   type Keyed,
   type PlanAccount,
   type SubscriptionAccount,
+  acceptPriceIx,
   cancelIx,
+  effectivePrice,
   fetchSubscriptionsBySubscriber,
   fetchUsdcAccount,
   isPaused,
   mandateRemaining,
+  pendingIncrease,
   resumeIx,
   revokeMandateIx,
 } from "@/lib/monthly";
@@ -54,7 +46,7 @@ export default function MePage() {
       fetchSubscriptionsBySubscriber(program, publicKey),
       fetchUsdcAccount(connection, publicKey),
     ]);
-    const plans = await program.account.plan.fetchMultiple(subs.map((s) => s.account.plan));
+    const plans = await program.account.plan.fetchMultiple(subs.map((s) => s.account.plan)).catch(() => []);
     const list = subs.map((sub, i) => ({
       sub,
       plan: plans[i] ? { publicKey: sub.account.plan, account: plans[i]! } : null,
@@ -67,86 +59,67 @@ export default function MePage() {
     setLoaded(true);
   }, [program, publicKey, connection]);
 
-  usePoll(load, 15_000);
+  usePoll(load, 10_000);
   const { busy, result, run } = useTx(load);
 
-  if (!publicKey) {
-    return (
-      <ConnectPrompt
-        title="My subscriptions"
-        text="Connect the wallet you subscribed with to see what you pay for, when the next payment is due, and to cancel."
-      />
-    );
-  }
-
-  const monthlyTotal = rows.reduce((sum, r) => {
-    if (!r.plan || isPaused(r.sub.account) || !r.plan.account.active) return sum;
-    const perSecond = Number(r.plan.account.amount.toString()) / r.plan.account.intervalSeconds.toNumber();
-    return sum + perSecond * 30 * 86400;
-  }, 0);
+  if (!publicKey) return <ConnectPrompt title="My subscriptions" text="Connect the wallet you subscribed with." />;
 
   return (
     <div className="space-y-8">
-      <PageHeader title="My subscriptions" subtitle="Everything this wallet pays for, and the mandate behind it." />
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Stat label="Subscriptions" value={rows.length} hint={`${rows.filter((r) => isPaused(r.sub.account)).length} paused`} />
-        <Stat
-          label="Mandate left"
-          value={formatUsdc(remaining)}
-          hint="USDC Monthly may still pull"
-        />
-        <Stat label="Wallet balance" value={balance === null ? "—" : formatUsdc(balance)} hint="test USDC" />
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold tracking-tight">My subscriptions</h1>
+        <div className="flex gap-3 text-sm">
+          <span className="inline-flex items-center gap-2 rounded-xl border border-line bg-panel px-3 py-2">
+            <WalletIcon size={16} className="text-muted" /> {balance === null ? "—" : formatUsdc(balance)} USDC
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-xl border border-line bg-panel px-3 py-2" title="Spending limit left">
+            <ShieldIcon size={16} className="text-muted" /> {formatUsdc(remaining)} USDC limit left
+          </span>
+        </div>
       </div>
 
-      {rows.length > 0 && remaining === 0n && (
-        <Notice tone="info">
-          No mandate left: upcoming payments will fail and pause after three days. Open a plan page to approve a new
-          ceiling.
-        </Notice>
-      )}
       <ResultNotice result={result} />
 
       {!loaded ? (
         <p className="py-10 text-center text-sm text-muted">Loading…</p>
       ) : rows.length === 0 ? (
         <Empty title="No subscriptions yet">
-          <p>
-            Try the{" "}
-            <Link className="text-accent underline" href={`/p/${DEMO_PLAN}`}>
-              demo plan
-            </Link>{" "}
-            or open a link a merchant shared with you.
-          </p>
+          <Link className="text-accent underline" href={`/p/${DEMO_PLAN}`}>
+            Try the demo plan
+          </Link>
         </Empty>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {rows.map(({ sub, plan }) => {
+            if (!plan) return null;
+            const a = plan.account;
             const next = sub.account.nextChargeAt.toNumber();
+            const interval = a.intervalSeconds.toNumber();
             const paused = isPaused(sub.account);
-            const closed = plan !== null && !plan.account.active;
-            const interval = plan?.account.intervalSeconds.toNumber() ?? 1;
+            const closed = !a.active;
+            const increase = pendingIncrease(sub.account, a);
+            const pays = effectivePrice(sub.account, a);
+            const lowered = pays < BigInt(sub.account.agreedAmount.toString());
             return (
               <Card key={sub.publicKey.toBase58()} className="flex flex-col gap-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <Link href={`/p/${sub.account.plan.toBase58()}`} className="font-semibold hover:underline">
-                      {plan?.account.name ?? "Unknown plan"}
-                    </Link>
-                    {plan && (
+                <div className="flex items-start justify-between">
+                  <Link href={`/p/${plan.publicKey.toBase58()}`} className="flex items-center gap-3">
+                    <PlanAvatar image={a.image} name={a.name} size={44} />
+                    <div>
+                      <div className="font-semibold hover:underline">{a.name}</div>
                       <div className="text-sm text-muted">
-                        {formatUsdc(plan.account.amount.toString())} USDC {intervalLabel(interval)}
+                        {formatUsdc(pays)} USDC {perInterval(interval)}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  </Link>
                   <Badge tone={paused ? "warn" : closed ? "off" : "ok"}>
-                    {paused ? "paused" : closed ? "plan closed" : "active"}
+                    {paused ? "paused" : closed ? "ended" : "active"}
                   </Badge>
                 </div>
 
                 {!paused && !closed && (
                   <div className="space-y-1.5">
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-xs">
                       <span className="text-muted">Next payment</span>
                       <span title={formatDate(next)}>{timeUntil(next, now)}</span>
                     </div>
@@ -154,40 +127,56 @@ export default function MePage() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between text-xs text-muted">
-                  <span>{sub.account.periodsPaid.toString()} paid</span>
-                  <span>
-                    Merchant <Address value={plan?.account.merchant.toBase58() ?? sub.account.plan.toBase58()} />
-                  </span>
-                </div>
-
-                <div className="flex gap-2 border-t border-line pt-4">
-                  {paused && plan?.account.active && (
-                    <Button
-                      size="sm"
+                {lowered && (
+                  <div className="inline-flex items-center gap-1.5 text-xs text-accent">
+                    <ArrowDownIcon size={13} /> Price lowered by the merchant
+                  </div>
+                )}
+                {increase !== null && !closed && (
+                  <div className="flex items-center justify-between gap-2 rounded-xl border border-warn/40 bg-warn/5 px-3 py-2 text-xs">
+                    <span className="inline-flex items-center gap-1.5">
+                      <LockIcon size={13} className="text-warn" /> New price {formatUsdc(increase)}
+                    </span>
+                    <button
+                      className="font-medium text-accent hover:underline"
                       disabled={busy !== null}
                       onClick={() =>
-                        run("Resume", async () => [await resumeIx(program, publicKey, plan, sub)], "Resumed and paid.")
+                        run("Accept", async () => [await acceptPriceIx(program, publicKey, plan.publicKey, sub.publicKey)], "New price accepted.")
                       }
                     >
-                      Resume and pay now
+                      Accept
+                    </button>
+                  </div>
+                )}
+
+                <div className="mt-auto flex items-center gap-2 border-t border-line pt-4 text-xs text-muted">
+                  <CoinsIcon size={14} /> {sub.account.periodsPaid.toString()} paid
+                  <span className="ml-auto flex gap-2">
+                    {paused && !closed && (
+                      <Button
+                        size="sm"
+                        disabled={busy !== null}
+                        onClick={() => run("Resume", async () => [await resumeIx(program, publicKey, plan, sub)], "Resumed.")}
+                      >
+                        Resume
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy !== null}
+                      onClick={() => {
+                        if (!confirm(`Cancel ${a.name}?`)) return;
+                        void run(
+                          "Cancel",
+                          async () => [await cancelIx(program, publicKey, plan.publicKey, sub.publicKey)],
+                          "Cancelled.",
+                        );
+                      }}
+                    >
+                      Cancel
                     </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    disabled={busy !== null}
-                    onClick={() => {
-                      if (!confirm(`Cancel ${plan?.account.name ?? "this subscription"}? No further payments will be taken.`)) return;
-                      void run(
-                        "Cancel",
-                        async () => [await cancelIx(program, publicKey, sub.account.plan, sub.publicKey)],
-                        "Subscription cancelled.",
-                      );
-                    }}
-                  >
-                    Cancel subscription
-                  </Button>
+                  </span>
                 </div>
               </Card>
             );
@@ -195,28 +184,24 @@ export default function MePage() {
         </div>
       )}
 
-      <Card>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="font-medium">Mandate</h2>
-            <p className="text-sm text-muted">
-              One mandate covers all your Monthly subscriptions
-              {monthlyTotal > 0 ? `, currently about ${formatUsdc(BigInt(Math.round(monthlyTotal)))} USDC per 30 days` : ""}.
-              Revoking it stops every future payment at once.
-            </p>
-          </div>
+      {remaining > 0n && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line px-5 py-4 text-sm">
+          <span className="inline-flex items-center gap-2 text-muted">
+            <ShieldIcon size={16} /> Your spending limit covers all Monthly subscriptions.
+          </span>
           <Button
+            size="sm"
             variant="danger"
-            disabled={remaining === 0n || busy !== null}
+            disabled={busy !== null}
             onClick={() => {
-              if (!confirm("Revoke the mandate? All future payments will fail until you approve again.")) return;
-              void run("Revoke", async () => [revokeMandateIx(publicKey)], "Mandate revoked.");
+              if (!confirm("Revoke your spending limit? All future payments stop.")) return;
+              void run("Revoke", async () => [revokeMandateIx(publicKey)], "Spending limit revoked.");
             }}
           >
-            Revoke mandate
+            Revoke limit
           </Button>
         </div>
-      </Card>
+      )}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+pub mod accept_price;
 pub mod cancel;
 pub mod charge;
 pub mod close_plan;
@@ -5,10 +6,13 @@ pub mod collect;
 pub mod create_plan;
 pub mod resume;
 pub mod subscribe;
+pub mod update_plan;
 
+pub use accept_price::*;
 pub use cancel::*;
 pub use charge::*;
 pub use close_plan::*;
 pub use create_plan::*;
 pub use resume::*;
 pub use subscribe::*;
+pub use update_plan::*;

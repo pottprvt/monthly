@@ -138,6 +138,7 @@ impl World {
             &monthly::instruction::CreatePlan {
                 plan_id: PLAN_ID,
                 name: "Trading group".to_string(),
+                image: "preset:🚀:#7c6dff".to_string(),
                 amount: PLAN_AMOUNT,
                 interval_seconds: INTERVAL,
             }
@@ -228,6 +229,39 @@ impl World {
         self.send(ix, &signer)
     }
 
+    fn update_plan(&mut self, signer: &Keypair, name: &str, image: &str, amount: u64) -> Result<(), FailedTransactionMetadata> {
+        let ix = Instruction::new_with_bytes(
+            self.program_id,
+            &monthly::instruction::UpdatePlan {
+                name: name.to_string(),
+                image: image.to_string(),
+                amount,
+            }
+            .data(),
+            monthly::accounts::UpdatePlan {
+                merchant: signer.pubkey(),
+                plan: self.plan,
+            }
+            .to_account_metas(None),
+        );
+        self.send(ix, signer)
+    }
+
+    fn accept_price(&mut self) -> Result<(), FailedTransactionMetadata> {
+        let ix = Instruction::new_with_bytes(
+            self.program_id,
+            &monthly::instruction::AcceptPrice {}.data(),
+            monthly::accounts::AcceptPrice {
+                subscriber: self.subscriber.pubkey(),
+                plan: self.plan,
+                subscription: self.subscription,
+            }
+            .to_account_metas(None),
+        );
+        let signer = self.subscriber.insecure_clone();
+        self.send(ix, &signer)
+    }
+
     fn close_plan(&mut self, signer: &Keypair) -> Result<(), FailedTransactionMetadata> {
         let ix = Instruction::new_with_bytes(
             self.program_id,
@@ -271,6 +305,7 @@ fn create_plan_and_subscribe_collects_first_period() {
     assert_eq!(plan.interval_seconds, INTERVAL);
     assert!(plan.active);
     assert_eq!(plan.name, "Trading group");
+    assert_eq!(plan.image, "preset:🚀:#7c6dff");
 
     w.approve(12 * PLAN_AMOUNT);
     let before = w.now();
@@ -281,6 +316,7 @@ fn create_plan_and_subscribe_collects_first_period() {
     let sub = w.sub_state();
     assert_eq!(sub.status, SubscriptionStatus::Active);
     assert_eq!(sub.periods_paid, 1);
+    assert_eq!(sub.agreed_amount, PLAN_AMOUNT);
     assert_eq!(sub.next_charge_at, before + INTERVAL);
     let plan = w.plan_state();
     assert_eq!(plan.subscriber_count, 1);
@@ -420,6 +456,7 @@ fn plan_validation() {
             &monthly::instruction::CreatePlan {
                 plan_id: PLAN_ID,
                 name: name.to_string(),
+                image: String::new(),
                 amount,
                 interval_seconds: interval,
             }
@@ -442,4 +479,65 @@ fn plan_validation() {
         bad(&mut w, PLAN_AMOUNT, INTERVAL, &"n".repeat(MAX_NAME_LEN + 1)),
         MonthlyError::NameTooLong,
     );
+}
+
+#[test]
+fn price_cut_applies_immediately() {
+    let mut w = World::new();
+    w.create_plan().unwrap();
+    w.approve(12 * PLAN_AMOUNT);
+    w.subscribe().unwrap();
+
+    let merchant = w.merchant.insecure_clone();
+    w.update_plan(&merchant, "Trading group", "", PLAN_AMOUNT / 2).unwrap();
+    w.warp(INTERVAL + 60);
+    w.charge().unwrap();
+    assert_eq!(w.balance(&w.merchant_ata), PLAN_AMOUNT + PLAN_AMOUNT / 2);
+}
+
+#[test]
+fn price_increase_needs_subscriber_signature() {
+    let mut w = World::new();
+    w.create_plan().unwrap();
+    w.approve(12 * PLAN_AMOUNT);
+    w.subscribe().unwrap();
+
+    let merchant = w.merchant.insecure_clone();
+    w.update_plan(&merchant, "Trading group", "", PLAN_AMOUNT * 5).unwrap();
+    assert_eq!(w.plan_state().amount, PLAN_AMOUNT * 5);
+
+    // Without acceptance the old price is charged.
+    w.warp(INTERVAL + 60);
+    w.charge().unwrap();
+    assert_eq!(w.balance(&w.merchant_ata), 2 * PLAN_AMOUNT);
+
+    // After acceptance the new price applies.
+    w.accept_price().unwrap();
+    assert_eq!(w.sub_state().agreed_amount, PLAN_AMOUNT * 5);
+    w.warp(INTERVAL + 60);
+    w.charge().unwrap();
+    assert_eq!(w.balance(&w.merchant_ata), 2 * PLAN_AMOUNT + PLAN_AMOUNT * 5);
+
+    // Nothing left to accept.
+    assert_error(w.accept_price(), MonthlyError::NothingToAccept);
+}
+
+#[test]
+fn only_merchant_updates_plan_and_listing_is_validated() {
+    let mut w = World::new();
+    w.create_plan().unwrap();
+    let stranger = w.anyone.insecure_clone();
+    assert!(w.update_plan(&stranger, "Hijacked", "", 1).is_err());
+
+    let merchant = w.merchant.insecure_clone();
+    assert_error(w.update_plan(&merchant, "x", "", 0), MonthlyError::ZeroAmount);
+    assert_error(
+        w.update_plan(&merchant, "x", &"i".repeat(MAX_IMAGE_LEN + 1), 1),
+        MonthlyError::ImageTooLong,
+    );
+    w.update_plan(&merchant, "Renamed", "https://example.com/logo.png", PLAN_AMOUNT).unwrap();
+    let plan = w.plan_state();
+    assert_eq!(plan.name, "Renamed");
+    assert_eq!(plan.image, "https://example.com/logo.png");
+    assert_eq!(plan.interval_seconds, INTERVAL, "interval never changes");
 }

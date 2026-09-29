@@ -19,3 +19,6 @@ pub const GRACE_SECONDS: i64 = 3 * 24 * 60 * 60;
 pub const MIN_INTERVAL_SECONDS: i64 = 60;
 
 pub const MAX_NAME_LEN: usize = 32;
+
+/// Image is either an https URL or a preset like `preset:🚀:#7c6dff`.
+pub const MAX_IMAGE_LEN: usize = 160;

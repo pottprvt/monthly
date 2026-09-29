@@ -25,16 +25,23 @@ pub struct CreatePlan<'info> {
     pub system_program: Program<'info, System>,
 }
 
+pub fn validate_listing(name: &str, image: &str, amount: u64) -> Result<()> {
+    require!(amount > 0, MonthlyError::ZeroAmount);
+    require!(name.len() <= MAX_NAME_LEN, MonthlyError::NameTooLong);
+    require!(image.len() <= MAX_IMAGE_LEN, MonthlyError::ImageTooLong);
+    Ok(())
+}
+
 pub fn handle_create_plan(
     ctx: Context<CreatePlan>,
     plan_id: u64,
     name: String,
+    image: String,
     amount: u64,
     interval_seconds: i64,
 ) -> Result<()> {
-    require!(amount > 0, MonthlyError::ZeroAmount);
+    validate_listing(&name, &image, amount)?;
     require!(interval_seconds >= MIN_INTERVAL_SECONDS, MonthlyError::IntervalTooShort);
-    require!(name.len() <= MAX_NAME_LEN, MonthlyError::NameTooLong);
 
     let plan = &mut ctx.accounts.plan;
     plan.merchant = ctx.accounts.merchant.key();
@@ -48,6 +55,7 @@ pub fn handle_create_plan(
     plan.total_collected = 0;
     plan.created_at = Clock::get()?.unix_timestamp;
     plan.name = name;
+    plan.image = image;
     plan.bump = ctx.bumps.plan;
     Ok(())
 }

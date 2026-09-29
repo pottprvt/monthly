@@ -66,6 +66,7 @@ pub fn handle_subscribe(ctx: Context<Subscribe>) -> Result<()> {
     sub.subscriber = ctx.accounts.subscriber.key();
     sub.plan = plan.key();
     sub.subscriber_token_account = ctx.accounts.subscriber_token_account.key();
+    sub.agreed_amount = amount;
     sub.next_charge_at = now + plan.interval_seconds;
     sub.status = SubscriptionStatus::Active;
     sub.periods_paid = 1;

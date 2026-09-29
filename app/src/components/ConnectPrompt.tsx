@@ -17,7 +17,7 @@ export function ConnectPrompt({ title, text }: { title: string; text: string }) 
       <div className="mt-6 flex justify-center">
         <WalletMultiButton />
       </div>
-      <p className="mt-4 text-xs text-muted">Set your wallet to devnet first.</p>
+      <p className="mt-4 text-xs text-muted">Wallet on devnet</p>
     </Card>
   );
 }

@@ -84,7 +84,7 @@ async function main() {
 
   await send(
     "create plan",
-    [await createPlanIx(mProgram, merchant.publicKey, planId, "E2E plan", new BN(AMOUNT.toString()), new BN(INTERVAL))],
+    [await createPlanIx(mProgram, merchant.publicKey, planId, "E2E plan", "preset:🧪:#3ccf7a", new BN(AMOUNT.toString()), new BN(INTERVAL))],
     [merchant],
   );
   const planAccount = await mProgram.account.plan.fetch(plan);

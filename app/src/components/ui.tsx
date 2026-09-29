@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 import { explorerAddress, explorerTx, shortAddress } from "@/lib/config";
@@ -9,26 +8,6 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
     <section className={`rounded-2xl border border-line bg-panel p-5 shadow-sm ${className}`}>
       {children}
     </section>
-  );
-}
-
-export function PageHeader({
-  title,
-  subtitle,
-  action,
-}: {
-  title: string;
-  subtitle?: ReactNode;
-  action?: ReactNode;
-}) {
-  return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
-      </div>
-      {action}
-    </div>
   );
 }
 
@@ -52,16 +31,6 @@ export function Button({
   return <button className={`${base} ${sizes} ${styles} ${className}`} {...props} />;
 }
 
-export function Field({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-medium">{label}</span>
-      {children}
-      {hint && <span className="mt-1.5 block text-xs text-muted">{hint}</span>}
-    </label>
-  );
-}
-
 export const inputClass =
   "w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm outline-none transition focus:border-accent";
 
@@ -73,16 +42,6 @@ export function Badge({ tone, children }: { tone: "ok" | "warn" | "off" | "accen
     accent: "bg-accent/15 text-accent",
   }[tone];
   return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${styles}`}>{children}</span>;
-}
-
-export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
-  return (
-    <Card className="p-4">
-      <div className="text-xs uppercase tracking-wide text-muted">{label}</div>
-      <div className="mt-1 text-2xl font-semibold tabular-nums">{value}</div>
-      {hint && <div className="mt-0.5 text-xs text-muted">{hint}</div>}
-    </Card>
-  );
 }
 
 export function Tabs<T extends string>({
@@ -114,7 +73,7 @@ export function Tabs<T extends string>({
   );
 }
 
-export function Drawer({
+export function Modal({
   open,
   title,
   onClose,
@@ -127,17 +86,17 @@ export function Drawer({
 }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <button aria-label="Close" className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <aside className="relative flex h-full w-full max-w-md flex-col gap-5 overflow-y-auto border-l border-line bg-panel p-6 shadow-xl">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <button onClick={onClose} className="text-muted hover:text-fg" aria-label="Close panel">
+    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4">
+      <button aria-label="Close" className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-4xl rounded-3xl border border-line bg-bg p-6 shadow-2xl sm:p-8">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-xl font-semibold">{title}</h2>
+          <button onClick={onClose} className="rounded-lg p-1 text-muted hover:bg-panel-strong hover:text-fg" aria-label="Close">
             ✕
           </button>
         </div>
         {children}
-      </aside>
+      </div>
     </div>
   );
 }
@@ -194,14 +153,6 @@ export function Empty({ title, children }: { title?: string; children?: ReactNod
       {title && <div className="font-medium">{title}</div>}
       {children && <div className="mt-1 text-sm text-muted">{children}</div>}
     </div>
-  );
-}
-
-export function InlineLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <Link href={href} className="text-accent underline-offset-2 hover:underline">
-      {children}
-    </Link>
   );
 }
 

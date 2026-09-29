@@ -3,6 +3,8 @@
 //! A merchant creates a plan. A subscriber approves the program's authority as delegate on their
 //! token account (the mandate) and subscribes. From then on anyone can trigger `charge` once a
 //! period is due; the program only ever moves the plan amount, only to the plan's merchant account.
+//! Price rule: a subscriber is charged min(agreed price, current plan price), so price cuts apply
+//! immediately and price increases need the subscriber's signature (`accept_price`).
 
 pub mod constants;
 pub mod error;
@@ -25,10 +27,19 @@ pub mod monthly {
         ctx: Context<CreatePlan>,
         plan_id: u64,
         name: String,
+        image: String,
         amount: u64,
         interval_seconds: i64,
     ) -> Result<()> {
-        instructions::create_plan::handle_create_plan(ctx, plan_id, name, amount, interval_seconds)
+        instructions::create_plan::handle_create_plan(ctx, plan_id, name, image, amount, interval_seconds)
+    }
+
+    pub fn update_plan(ctx: Context<UpdatePlan>, name: String, image: String, amount: u64) -> Result<()> {
+        instructions::update_plan::handle_update_plan(ctx, name, image, amount)
+    }
+
+    pub fn accept_price(ctx: Context<AcceptPrice>) -> Result<()> {
+        instructions::accept_price::handle_accept_price(ctx)
     }
 
     pub fn subscribe(ctx: Context<Subscribe>) -> Result<()> {

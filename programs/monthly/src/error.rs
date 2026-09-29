@@ -26,4 +26,8 @@ pub enum MonthlyError {
     RetryLater,
     #[msg("Token account does not match the plan")]
     TokenAccountMismatch,
+    #[msg("Image reference is too long")]
+    ImageTooLong,
+    #[msg("Plan price is not higher than the price you agreed to")]
+    NothingToAccept,
 }

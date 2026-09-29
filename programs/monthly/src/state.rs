@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::constants::MAX_NAME_LEN;
+use crate::constants::{MAX_IMAGE_LEN, MAX_NAME_LEN};
 
 #[account]
 #[derive(InitSpace)]
@@ -9,7 +9,8 @@ pub struct Plan {
     pub mint: Pubkey,
     /// Token account that receives every charge. Fixed at creation.
     pub merchant_token_account: Pubkey,
-    /// Amount per period, in the mint's base units.
+    /// Current price per period, in the mint's base units. New subscribers agree to this price.
+    /// Existing subscribers are charged min(their agreed price, this price).
     pub amount: u64,
     pub interval_seconds: i64,
     /// Merchant-chosen id, part of the PDA seed so one merchant can run several plans.
@@ -20,6 +21,8 @@ pub struct Plan {
     pub created_at: i64,
     #[max_len(MAX_NAME_LEN)]
     pub name: String,
+    #[max_len(MAX_IMAGE_LEN)]
+    pub image: String,
     pub bump: u8,
 }
 
@@ -37,6 +40,8 @@ pub struct Subscription {
     pub plan: Pubkey,
     /// Token account the charges are pulled from. Fixed at subscription.
     pub subscriber_token_account: Pubkey,
+    /// Price the subscriber signed for. A higher plan price only applies after `accept_price`.
+    pub agreed_amount: u64,
     pub next_charge_at: i64,
     pub status: SubscriptionStatus,
     pub periods_paid: u64,

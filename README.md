@@ -10,11 +10,22 @@ Built for the Superteam Germany "Road to Colosseum: Build your MVP" bounty and t
 2. **Subscriber subscribes**: one transaction that (a) approves the Monthly authority as delegate on the subscriber's USDC account for a chosen allowance, e.g. twelve periods, and (b) creates the subscription and collects the first period.
 3. **Charges**: once the interval has passed, anyone may call `charge`. The program checks the mandate and the balance and moves exactly the plan amount to the merchant. A charge that cannot be covered is retried during a three-day grace period, then the subscription is paused.
 4. **Subscriber stays in control**: cancel at any time (account closed, rent returned), revoke the delegate in any wallet, resume a paused subscription once funds are back.
-5. **Merchant closes a plan**: no new subscriptions, no further charges.
+5. **Merchant edits a plan**: name, image and price can change; the billing interval cannot.
+6. **Merchant closes a plan**: no new subscriptions, no further charges.
+
+### Price rule
+
+Every subscription stores the price the subscriber signed for. A charge always takes the lower of that agreed price and the plan's current price:
+
+- **Price cut**: applies to every subscriber at the next charge, automatically.
+- **Price increase**: applies to new subscribers only. Existing subscribers keep paying their agreed price until they sign `accept_price`.
+
+A merchant therefore cannot raise what an existing subscriber pays, and the interval is immutable because a shorter interval would be a hidden increase.
 
 What the program guarantees regardless of any website:
 
-- Only the plan amount, only when due, only to the plan's merchant account.
+- Only min(agreed price, current price), only when due, only to the plan's merchant account.
+- No price increase without the subscriber's signature.
 - Only the subscriber can cancel or resume; only the merchant can close a plan.
 - The allowance is a hard ceiling set by the subscriber and decreases with every charge.
 
@@ -24,7 +35,7 @@ Live app (devnet): **https://monthly-sol.vercel.app**
 
 1. Switch Phantom, Solflare or Backpack to devnet and connect.
 2. Click **Get test funds**: 100 test USDC, plus 0.05 devnet SOL for fees if the wallet is empty. No external faucet needed.
-3. Subscribe to the [demo plan](https://monthly-sol.vercel.app/p/4yRasyiwP2jXpRt7WFX48G56VhZw5C4hb4qFzEiQxNvi) (1 test USDC every minute), or create your own plan under **Merchant** and subscribe with a second wallet.
+3. Subscribe to the [demo plan](https://monthly-sol.vercel.app/p/2SkdzDedm7py8Y9PvBGwJ9ec3cEyuiXbc2vpubihbeQQ) (1 test USDC every minute), or create your own plan under **Merchant** and subscribe with a second wallet.
 4. Watch the charges arrive under **Merchant** or **My subscriptions**; cancel or revoke the mandate any time.
 
 ## Devnet addresses
@@ -34,7 +45,7 @@ Live app (devnet): **https://monthly-sol.vercel.app**
 | Program | [`6F6a5BMjLyy7rXRcgZf9vwSqsVxJ34d1Xvov4gBsMhcQ`](https://explorer.solana.com/address/6F6a5BMjLyy7rXRcgZf9vwSqsVxJ34d1Xvov4gBsMhcQ?cluster=devnet) |
 | Mandate authority (PDA `["authority"]`) | derived, see `app/src/lib/monthly.ts` |
 | Test USDC mint (6 decimals) | [`FbLav7StPpMyLdSBDhrsDNJQ3XbimxW5isbUY5CtWVFw`](https://explorer.solana.com/address/FbLav7StPpMyLdSBDhrsDNJQ3XbimxW5isbUY5CtWVFw?cluster=devnet) |
-| Demo plan | [`4yRasyiwP2jXpRt7WFX48G56VhZw5C4hb4qFzEiQxNvi`](https://explorer.solana.com/address/4yRasyiwP2jXpRt7WFX48G56VhZw5C4hb4qFzEiQxNvi?cluster=devnet) |
+| Demo plan | [`2SkdzDedm7py8Y9PvBGwJ9ec3cEyuiXbc2vpubihbeQQ`](https://explorer.solana.com/address/2SkdzDedm7py8Y9PvBGwJ9ec3cEyuiXbc2vpubihbeQQ?cluster=devnet) |
 
 Example transactions from the end-to-end run (`app/scripts/e2e.ts`):
 
@@ -51,8 +62,10 @@ Anchor 1.2, deployed on Devnet: `6F6a5BMjLyy7rXRcgZf9vwSqsVxJ34d1Xvov4gBsMhcQ`
 
 | Instruction | Signer | Effect |
 |---|---|---|
-| `create_plan(plan_id, name, amount, interval_seconds)` | merchant | creates the `Plan` PDA `["plan", merchant, plan_id]` |
-| `subscribe()` | subscriber | creates `Subscription` PDA `["subscription", plan, subscriber]`, collects period 1 |
+| `create_plan(plan_id, name, image, amount, interval_seconds)` | merchant | creates the `Plan` PDA `["plan", merchant, plan_id]` |
+| `update_plan(name, image, amount)` | merchant | edits the listing; cuts apply to all, increases only to new or accepting subscribers |
+| `accept_price()` | subscriber | agrees to the plan's current, higher price |
+| `subscribe()` | subscriber | creates `Subscription` PDA `["subscription", plan, subscriber]` with the agreed price, collects period 1 |
 | `charge()` | anyone | collects one period if `now >= next_charge_at`; pauses after grace if blocked |
 | `resume()` | subscriber | reactivates a paused subscription by collecting one period |
 | `cancel()` | subscriber | closes the subscription |
@@ -106,7 +119,7 @@ Scripts (`app/scripts`):
 
 ```
 programs/monthly/src/          program: state.rs, error.rs, instructions/*
-programs/monthly/tests/        LiteSVM tests covering every instruction and failure path
+programs/monthly/tests/        LiteSVM tests covering every instruction, the price rule and failure paths
 app/                           Next.js web app, API routes (Blink, test funds), scripts
 scripts/build.sh               build helper
 ```
