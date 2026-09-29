@@ -2,7 +2,7 @@
 
 Members get access to a creator's chat while their subscription is active and lose it when it is paused, cancelled or the plan is closed. The on-chain program is the only source of truth for "is this subscription active"; the integration layer only mirrors it.
 
-Status: the provider registry (`app/src/integrations`) and `GET /api/integrations` exist; the flows below are the build plan for the bots.
+Status: **Telegram is implemented** as described below (`app/src/integrations/telegram`, `app/src/server`). Discord is registered as a provider and follows the same design.
 
 ## Principles
 
@@ -32,9 +32,9 @@ Upstash Redis via the Vercel Marketplace (atomic `SET NX` / `GETDEL` with TTL fo
 Every flow starts with a wallet proof: server nonce, SIWS message with domain, `chainId: devnet`, expiry ≤ 5 min and the action in `resources`; verified server-side; result is an HttpOnly session cookie.
 
 **Creator connects a Telegram group**
-1. Server checks `session.wallet == plan.merchant` on-chain, creates a one-time code, UI shows `t.me/<bot>?start=<code>`.
-2. The bot redeems the code, binds the creator's Telegram id to the plan and sends a "choose group" button (`KeyboardButtonRequestChat`, supergroups only, requesting `can_invite_users` + `can_restrict_members` for the bot).
-3. On `chat_shared` the server verifies chat type, bot rights and that the creator is an admin, then creates the plan's invite link with `creates_join_request: true` and stores the connection. `my_chat_member` updates flip the connection to `error` if rights are removed.
+1. Server checks `session.wallet == plan.merchant` on-chain, creates a one-time code, UI opens `t.me/<bot>?startgroup=<code>&admin=invite_users+restrict_members`.
+2. Telegram asks the creator to pick a group and grant exactly these two rights; the bot receives `/start <code>` in that group.
+3. The bot verifies that the sender is a group admin and that it holds both rights, creates the plan's invite link with `creates_join_request: true` and stores the connection. `my_chat_member` updates flip the connection to `error` if rights are removed; group migrations to supergroups update the chat id.
 
 **Member gets Telegram access**
 1. Wallet proof, on-chain check that the subscription is active, one-time code, UI shows `t.me/<bot>?start=<code>`.
