@@ -133,6 +133,14 @@ export function Notice({ tone, children }: { tone: "ok" | "error" | "info"; chil
   return <div className={`rounded-lg border px-3 py-2 text-sm ${styles}`}>{children}</div>;
 }
 
+export function SlowNotice() {
+  return (
+    <div className="mb-4 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn">
+      Solana devnet is slow right now. Retrying…
+    </div>
+  );
+}
+
 export function ResultNotice({ result }: { result: TxResult | null }) {
   if (!result) return null;
   return (

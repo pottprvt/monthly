@@ -9,7 +9,7 @@ import { Overview } from "@/components/merchant/Overview";
 import { PlanEditor } from "@/components/merchant/PlanEditor";
 import { PlanList } from "@/components/merchant/PlanList";
 import { SubscriberTable } from "@/components/merchant/SubscriberTable";
-import { Button, Modal, Tabs } from "@/components/ui";
+import { Button, Modal, SlowNotice, Tabs } from "@/components/ui";
 import type { Keyed, PlanAccount } from "@/lib/monthly";
 import { useMerchantData } from "@/lib/useMerchantData";
 
@@ -43,6 +43,7 @@ export default function MerchantPage() {
           { id: "subscribers", label: "Subscribers", count: data.subs.length },
         ]}
       />
+      {data.failing && <SlowNotice />}
       {!data.loaded ? (
         <p className="py-10 text-center text-sm text-muted">Loading…</p>
       ) : tab === "plans" ? (
@@ -65,6 +66,7 @@ export default function MerchantPage() {
           <PlanEditor
             key={editing.mode === "edit" ? editing.plan.publicKey.toBase58() : "new"}
             existing={editing.mode === "edit" ? editing.plan : undefined}
+            nextPlanId={data.nextPlanId}
             hasUsdc={data.hasUsdc}
             onSaved={async () => {
               await data.reload();

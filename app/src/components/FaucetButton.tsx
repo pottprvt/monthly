@@ -3,7 +3,9 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useState } from "react";
 
-export function FaucetButton({ onFunded, variant = "nav" }: { onFunded?: () => void; variant?: "nav" | "inline" }) {
+import { requestRefresh } from "@/lib/hooks";
+
+export function FaucetButton({ variant = "nav" }: { variant?: "nav" | "inline" }) {
   const { publicKey } = useWallet();
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -22,8 +24,7 @@ export function FaucetButton({ onFunded, variant = "nav" }: { onFunded?: () => v
       const data = (await res.json()) as { signature?: string; error?: string };
       if (!res.ok || !data.signature) throw new Error(data.error ?? "request failed");
       setState("done");
-      if (onFunded) onFunded();
-      else setTimeout(() => window.location.reload(), 1000);
+      requestRefresh();
     } catch (err) {
       setState("error");
       setMessage((err as Error).message);
