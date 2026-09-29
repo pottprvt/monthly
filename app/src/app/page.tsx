@@ -1,58 +1,116 @@
-import { Card, InlineLink } from "@/components/ui";
+import Link from "next/link";
+
+import { Card } from "@/components/ui";
+import { DEMO_PLAN } from "@/lib/demo";
 
 const steps = [
   {
-    title: "Merchant creates a plan",
-    text: "Name, amount in USDC, interval. The plan is bound to the merchant's token account, so a charge can only ever land there.",
+    title: "Create a plan",
+    text: "Name, price in USDC, billing interval. Charges can only ever land in the merchant's account.",
   },
   {
-    title: "Subscriber approves a mandate",
-    text: "One signature approves the Monthly program as delegate for a chosen allowance and collects the first period. Nothing is prepaid; the money stays in the wallet until it is due.",
+    title: "Approve a mandate",
+    text: "The subscriber signs once: a spending ceiling for the Monthly program and the first payment. Nothing is prepaid.",
   },
   {
-    title: "Charges run on schedule",
-    text: "When a period is due, anyone can trigger the charge. The program moves exactly the plan amount, exactly once per period. A charge that cannot be covered is retried for three days, then the subscription pauses.",
+    title: "Get paid on schedule",
+    text: "When a period is due, the program pulls exactly the plan amount. Cancel or revoke any time, from any wallet.",
   },
-  {
-    title: "Subscriber stays in control",
-    text: "Cancel any time, revoke the mandate in any wallet, resume a paused subscription when funds are back. The rules live in the program, not on this website.",
-  },
+];
+
+const guarantees = [
+  "Only the plan amount, only once per period, only to the merchant.",
+  "The subscriber sets a hard ceiling and can revoke it in any wallet.",
+  "A failed payment is retried for three days, then the subscription pauses.",
+  "The rules live in the on-chain program, not on this website.",
 ];
 
 export default function Home() {
   return (
-    <div className="space-y-10">
-      <div className="max-w-2xl space-y-4">
-        <h1 className="text-4xl font-semibold tracking-tight">Direct debit for USDC.</h1>
-        <p className="text-lg text-muted">
-          Solana has no way to pay something every month. Merchants fall back to credit cards
-          or chase people by hand. Monthly turns the token program&apos;s delegate feature into a
-          mandate: approve once, get charged when due, cancel whenever.
-        </p>
-        <div className="flex flex-wrap gap-3 pt-2">
-          <InlineLink href="/merchant">Create a plan →</InlineLink>
-          <InlineLink href="/me">My subscriptions →</InlineLink>
+    <div className="space-y-16">
+      <section className="grid items-center gap-10 lg:grid-cols-[1.2fr_1fr]">
+        <div className="space-y-5">
+          <span className="inline-flex rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
+            Recurring payments on Solana
+          </span>
+          <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+            Direct debit for USDC.
+          </h1>
+          <p className="max-w-xl text-lg text-muted">
+            Solana has no way to charge someone every month. Monthly adds it: subscribers approve a
+            mandate once, the program collects when a payment is due, and either side can walk away
+            any time.
+          </p>
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Link
+              href="/merchant"
+              className="rounded-lg bg-accent px-5 py-3 text-sm font-medium text-white hover:bg-accent-strong"
+            >
+              I sell a subscription
+            </Link>
+            <Link
+              href="/me"
+              className="rounded-lg border border-line bg-panel px-5 py-3 text-sm font-medium hover:bg-panel-strong"
+            >
+              My subscriptions
+            </Link>
+          </div>
         </div>
-      </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {steps.map((s, i) => (
-          <Card key={s.title}>
-            <div className="mb-1 text-xs text-muted">Step {i + 1}</div>
-            <h2 className="mb-2 font-medium">{s.title}</h2>
-            <p className="text-sm text-muted">{s.text}</p>
-          </Card>
-        ))}
-      </div>
+        <Card className="space-y-4 p-6">
+          <div className="flex items-center justify-between">
+            <span className="text-xs uppercase tracking-wide text-muted">Live demo on devnet</span>
+            <span className="rounded-full bg-ok/15 px-2 py-0.5 text-xs font-medium text-ok">active</span>
+          </div>
+          <div>
+            <div className="text-xl font-semibold">Demo: Alpha Signals</div>
+            <div className="text-muted">1.00 test USDC every minute</div>
+          </div>
+          <p className="text-sm text-muted">
+            Subscribe with a devnet wallet and watch the charges arrive minute by minute. Use{" "}
+            <span className="text-fg">Get test funds</span> at the top for free test USDC.
+          </p>
+          <Link
+            href={`/p/${DEMO_PLAN}`}
+            className="block rounded-lg bg-accent px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-accent-strong"
+          >
+            Try the demo plan →
+          </Link>
+        </Card>
+      </section>
 
-      <Card>
-        <h2 className="mb-2 font-medium">Try it on devnet</h2>
-        <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
-          <li>Switch your wallet (Phantom, Solflare, Backpack) to devnet and connect it.</li>
-          <li>Click <span className="text-fg">Get test funds</span> at the top: 100 test USDC, plus devnet SOL for fees if your wallet is empty.</li>
-          <li>Create a plan with a one-minute interval, open its link with a second wallet, subscribe, and watch the charges arrive.</li>
-        </ol>
-      </Card>
+      <section>
+        <h2 className="mb-5 text-xl font-semibold">How it works</h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          {steps.map((s, i) => (
+            <Card key={s.title}>
+              <div className="mb-3 grid h-8 w-8 place-items-center rounded-full bg-accent/10 text-sm font-semibold text-accent">
+                {i + 1}
+              </div>
+              <h3 className="mb-1 font-medium">{s.title}</h3>
+              <p className="text-sm text-muted">{s.text}</p>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section className="grid gap-8 md:grid-cols-2">
+        <div>
+          <h2 className="mb-3 text-xl font-semibold">Why it is safe</h2>
+          <p className="text-sm text-muted">
+            Monthly uses the token program&apos;s own delegate feature. The subscriber keeps the
+            funds; the program can only move what the plan says, when the plan says.
+          </p>
+        </div>
+        <ul className="space-y-3">
+          {guarantees.map((g) => (
+            <li key={g} className="flex gap-3 text-sm">
+              <span className="mt-0.5 text-ok">✓</span>
+              <span>{g}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

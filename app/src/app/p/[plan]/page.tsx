@@ -2,25 +2,15 @@
 
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
+import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
-import {
-  Address,
-  Badge,
-  Button,
-  Card,
-  Empty,
-  Field,
-  InlineLink,
-  Notice,
-  TxLink,
-  formatDate,
-  inputClass,
-  timeUntil,
-} from "@/components/ui";
+import { FaucetButton } from "@/components/FaucetButton";
+import { Address, Badge, Button, Card, Empty, Progress, ResultNotice, formatDate, timeUntil } from "@/components/ui";
 import { formatUsdc, intervalLabel } from "@/lib/config";
-import { usePoll, useProgram } from "@/lib/hooks";
+import { usePoll, useProgram, useTx } from "@/lib/hooks";
 import {
   type PlanAccount,
   type SubscriptionAccount,
@@ -29,13 +19,19 @@ import {
   mandateRemaining,
   subscribeIxs,
   subscriptionPda,
-  toTx,
 } from "@/lib/monthly";
+
+const WalletMultiButton = dynamic(
+  async () => (await import("@solana/wallet-adapter-react-ui")).WalletMultiButton,
+  { ssr: false },
+);
+
+const PERIOD_PRESETS = [3, 6, 12, 24];
 
 export default function PlanPage() {
   const { plan: planParam } = useParams<{ plan: string }>();
   const { connection } = useConnection();
-  const { publicKey, sendTransaction } = useWallet();
+  const { publicKey } = useWallet();
   const program = useProgram();
 
   const planKey = useMemo(() => {
@@ -50,13 +46,13 @@ export default function PlanPage() {
   const [balance, setBalance] = useState<bigint | null>(null);
   const [remaining, setRemaining] = useState<bigint>(0n);
   const [periods, setPeriods] = useState(12);
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; text: string; sig?: string } | null>(null);
+  const [now, setNow] = useState(0);
 
   const load = useCallback(async () => {
     if (!planKey) return;
     const p = await program.account.plan.fetchNullable(planKey);
     setPlan(p);
+    setNow(Math.floor(Date.now() / 1000));
     if (!publicKey || !p) return;
     const [s, usdc] = await Promise.all([
       program.account.subscription.fetchNullable(subscriptionPda(planKey, publicKey)),
@@ -67,130 +63,183 @@ export default function PlanPage() {
     setRemaining(mandateRemaining(usdc));
   }, [planKey, program, publicKey, connection]);
 
-  usePoll(load);
+  usePoll(load, 15_000);
+  const { busy, result, run } = useTx(load);
 
-  async function subscribe() {
-    if (!publicKey || !plan || !planKey) return;
-    setBusy(true);
-    setResult(null);
-    try {
-      const amount = BigInt(plan.amount.toString());
-      const allowance = remaining + amount * BigInt(periods);
-      const ixs = await subscribeIxs(program, publicKey, planKey, plan, allowance);
-      const sig = await sendTransaction(toTx(ixs, publicKey), connection);
-      await connection.confirmTransaction(sig, "confirmed");
-      setResult({ ok: true, text: "Subscribed. First period collected.", sig });
-      await load();
-    } catch (err) {
-      setResult({ ok: false, text: (err as Error).message });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (!planKey || plan === null) return <Empty>This plan does not exist.</Empty>;
-  if (plan === undefined) return <Empty>Loading plan…</Empty>;
+  if (!planKey || plan === null) return <Empty title="Plan not found">Check the link you were given.</Empty>;
+  if (plan === undefined) return <p className="py-10 text-center text-sm text-muted">Loading plan…</p>;
 
   const amount = BigInt(plan.amount.toString());
   const interval = plan.intervalSeconds.toNumber();
+  const ceiling = remaining + amount * BigInt(periods);
   const canPay = balance !== null && balance >= amount;
 
+  async function subscribe() {
+    if (!publicKey || !plan || !planKey) return;
+    await run(
+      "Subscribe",
+      async () => subscribeIxs(program, publicKey, planKey, plan, ceiling),
+      "Subscribed. The first period is paid.",
+    );
+  }
+
   return (
-    <div className="mx-auto max-w-xl space-y-6">
-      <Card>
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold">{plan.name}</h1>
-            <p className="text-muted">
-              {formatUsdc(amount)} USDC {intervalLabel(interval)}
-            </p>
+    <div className="grid gap-8 lg:grid-cols-[1fr_420px]">
+      <div className="space-y-6">
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <Badge tone={plan.active ? "ok" : "off"}>{plan.active ? "open for subscriptions" : "closed"}</Badge>
           </div>
-          <Badge tone={plan.active ? "ok" : "off"}>{plan.active ? "active" : "closed"}</Badge>
+          <h1 className="text-3xl font-semibold tracking-tight">{plan.name}</h1>
+          <p className="mt-1 text-lg text-muted">
+            <span className="font-medium text-fg">{formatUsdc(amount)} USDC</span> {intervalLabel(interval)}
+          </p>
         </div>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-          <dt className="text-muted">Merchant</dt>
-          <dd>
-            <Address value={plan.merchant.toBase58()} />
-          </dd>
-          <dt className="text-muted">Subscribers</dt>
-          <dd>{plan.subscriberCount.toString()}</dd>
-          <dt className="text-muted">Plan</dt>
-          <dd>
-            <Address value={planParam} />
-          </dd>
-        </dl>
-      </Card>
 
-      {!publicKey && <Empty>Connect a wallet to subscribe.</Empty>}
-
-      {publicKey && sub && (
         <Card>
-          <h2 className="mb-2 font-medium">You are subscribed</h2>
-          <p className="text-sm text-muted">
-            {isPaused(sub)
-              ? "Paused: the last charge could not be covered."
-              : `Next charge ${timeUntil(sub.nextChargeAt.toNumber())} (${formatDate(sub.nextChargeAt.toNumber())}).`}{" "}
-            {sub.periodsPaid.toString()} period{sub.periodsPaid.eqn(1) ? "" : "s"} paid.
-          </p>
-          <p className="mt-3 text-sm">
-            <InlineLink href="/me">Manage in My subscriptions →</InlineLink>
-          </p>
+          <h2 className="mb-3 font-medium">What you agree to</h2>
+          <ul className="space-y-2 text-sm">
+            <li className="flex gap-3">
+              <span className="text-ok">✓</span>
+              <span>
+                {formatUsdc(amount)} USDC now, then {formatUsdc(amount)} USDC {intervalLabel(interval)}.
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <span className="text-ok">✓</span>
+              <span>Payments stay in your wallet until they are due. Nothing is prepaid.</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="text-ok">✓</span>
+              <span>The program can never take more than your ceiling, and never more than once per period.</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="text-ok">✓</span>
+              <span>Cancel any time here, or revoke the mandate in any Solana wallet.</span>
+            </li>
+          </ul>
         </Card>
-      )}
 
-      {publicKey && !sub && plan.active && (
-        <Card>
-          <h2 className="mb-1 font-medium">Subscribe</h2>
-          <p className="mb-4 text-sm text-muted">
-            One signature: approve a mandate for the allowance below and pay the first period now.
-            The rest stays in your wallet and is pulled only when due.
-          </p>
-          {balance === null && (
-            <div className="mb-4">
-              <Notice tone="error">
-                No test USDC in this wallet yet. Click “Get test funds” at the top.
-              </Notice>
-            </div>
-          )}
-          {balance !== null && !canPay && (
-            <div className="mb-4">
-              <Notice tone="error">
-                Balance {formatUsdc(balance)} USDC is below the first period of {formatUsdc(amount)} USDC.
-              </Notice>
-            </div>
-          )}
-          <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
-            <Field
-              label="Mandate ceiling (periods)"
-              hint={`Monthly may pull at most ${formatUsdc(remaining + amount * BigInt(periods))} USDC in total${remaining > 0n ? `, including ${formatUsdc(remaining)} USDC already approved for other plans` : ""}. You can revoke any time.`}
-            >
-              <input
-                className={inputClass}
-                type="number"
-                min={1}
-                max={120}
-                value={periods}
-                onChange={(e) => setPeriods(Math.max(1, Number(e.target.value)))}
-              />
-            </Field>
-            <Button onClick={subscribe} disabled={busy || !canPay}>
-              {busy ? "Signing…" : `Approve & pay ${formatUsdc(amount)} USDC`}
-            </Button>
+        <dl className="grid grid-cols-3 gap-3 text-sm">
+          <div className="rounded-xl border border-line bg-panel px-4 py-3">
+            <dt className="text-xs text-muted">Merchant</dt>
+            <dd className="mt-1">
+              <Address value={plan.merchant.toBase58()} />
+            </dd>
           </div>
-          {balance !== null && (
-            <p className="mt-3 text-xs text-muted">Wallet balance: {formatUsdc(balance)} USDC</p>
-          )}
-          {result && (
-            <div className="mt-4">
-              <Notice tone={result.ok ? "ok" : "error"}>
-                {result.text} {result.sig && <TxLink sig={result.sig} />}
-              </Notice>
-            </div>
-          )}
-        </Card>
-      )}
+          <div className="rounded-xl border border-line bg-panel px-4 py-3">
+            <dt className="text-xs text-muted">Subscribers</dt>
+            <dd className="mt-1 font-medium">{plan.subscriberCount.toString()}</dd>
+          </div>
+          <div className="rounded-xl border border-line bg-panel px-4 py-3">
+            <dt className="text-xs text-muted">Plan account</dt>
+            <dd className="mt-1">
+              <Address value={planParam} />
+            </dd>
+          </div>
+        </dl>
+      </div>
 
-      {publicKey && !sub && !plan.active && <Empty>This plan is closed to new subscriptions.</Empty>}
+      <aside className="lg:sticky lg:top-24 lg:self-start">
+        <Card className="space-y-5 p-6">
+          {!publicKey ? (
+            <div className="space-y-4 text-center">
+              <h2 className="text-lg font-semibold">Subscribe</h2>
+              <p className="text-sm text-muted">Connect a devnet wallet to continue.</p>
+              <div className="flex justify-center">
+                <WalletMultiButton />
+              </div>
+            </div>
+          ) : sub ? (
+            <SubscribedPanel sub={sub} interval={interval} now={now} />
+          ) : !plan.active ? (
+            <p className="text-sm text-muted">This plan no longer accepts subscriptions.</p>
+          ) : (
+            <>
+              <h2 className="text-lg font-semibold">Subscribe</h2>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium">1. Spending ceiling</span>
+                  <span className="text-muted">{periods} periods</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {PERIOD_PRESETS.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPeriods(p)}
+                      className={`rounded-lg border px-2 py-2 text-sm transition ${
+                        periods === p ? "border-accent bg-accent/10 font-medium text-accent" : "border-line hover:bg-panel-strong"
+                      }`}
+                    >
+                      {p}×
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted">
+                  Monthly may pull at most <span className="text-fg">{formatUsdc(ceiling)} USDC</span> in total
+                  {remaining > 0n ? `, including ${formatUsdc(remaining)} USDC already approved for your other plans` : ""}.
+                  Top it up or revoke it any time.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-sm font-medium">2. Approve and pay the first period</div>
+                <div className="flex items-center justify-between rounded-lg bg-panel-strong px-3 py-2 text-sm">
+                  <span>Due today</span>
+                  <span className="font-semibold">{formatUsdc(amount)} USDC</span>
+                </div>
+                <Button size="lg" className="w-full" onClick={subscribe} disabled={busy !== null || !canPay}>
+                  {busy ? "Confirm in your wallet…" : `Approve & pay ${formatUsdc(amount)} USDC`}
+                </Button>
+                <p className="text-center text-xs text-muted">One signature: mandate and first payment together.</p>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-line pt-4 text-xs text-muted">
+                <span>Wallet balance: {balance === null ? "no test USDC yet" : `${formatUsdc(balance)} USDC`}</span>
+                {!canPay && <FaucetButton variant="inline" onFunded={() => void load()} />}
+              </div>
+            </>
+          )}
+          <ResultNotice result={result} />
+        </Card>
+      </aside>
+    </div>
+  );
+}
+
+function SubscribedPanel({ sub, interval, now }: { sub: SubscriptionAccount; interval: number; now: number }) {
+  const next = sub.nextChargeAt.toNumber();
+  const paused = isPaused(sub);
+  const elapsed = 1 - (next - now) / interval;
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">You are subscribed</h2>
+        <Badge tone={paused ? "warn" : "ok"}>{paused ? "paused" : "active"}</Badge>
+      </div>
+      {paused ? (
+        <p className="text-sm text-muted">The last payment could not be collected. Resume it under My subscriptions.</p>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span>Next payment</span>
+            <span className="font-medium" title={formatDate(next)}>
+              {timeUntil(next, now)}
+            </span>
+          </div>
+          <Progress value={elapsed} />
+        </div>
+      )}
+      <div className="text-sm text-muted">
+        {sub.periodsPaid.toString()} period{sub.periodsPaid.eqn(1) ? "" : "s"} paid so far.
+      </div>
+      <Link
+        href="/me"
+        className="block rounded-lg border border-line px-4 py-2 text-center text-sm hover:bg-panel-strong"
+      >
+        Manage in My subscriptions
+      </Link>
     </div>
   );
 }
