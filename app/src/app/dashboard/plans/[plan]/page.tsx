@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ConnectGate } from "@/components/wallet/connect-gate";
 import { useAutoCollect } from "@/hooks/use-auto-collect";
 import { useCreatorData } from "@/hooks/use-creator-data";
+import { refreshAccess } from "@/hooks/use-telegram";
 import { useNow } from "@/hooks/use-now";
 import { useProgram } from "@/hooks/use-program";
 import { useTx } from "@/hooks/use-tx";
@@ -95,7 +96,9 @@ function PlanDetail() {
                 disabled={busy !== null}
                 onClick={() => {
                   if (!confirm(`Close “${a.name}”? No new members and no further payments.`)) return;
-                  void run("close", async () => [await closePlanIx(program, publicKey!, plan.publicKey)], "Plan closed");
+                  void run("close", async () => [await closePlanIx(program, publicKey!, plan.publicKey)], "Plan closed").then(
+                    (ok) => ok && refreshAccess({ plan: plan.publicKey.toBase58() }),
+                  );
                 }}
               >
                 Close plan
@@ -114,7 +117,7 @@ function PlanDetail() {
       )}
 
       <Section title="Community" description="Where members get access while they pay.">
-        <CommunityConnections />
+        <CommunityConnections plan={plan.publicKey.toBase58()} />
       </Section>
 
       <Section title="Members">

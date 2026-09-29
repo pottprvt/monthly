@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo } from "react";
 
+import { JoinTelegram } from "@/components/checkout/join-telegram";
 import { SubscribeStep } from "@/components/checkout/subscribe-step";
 import { SlowBanner } from "@/components/common/slow-banner";
 import { StatusBadge } from "@/components/common/status-badge";
@@ -85,6 +86,7 @@ export default function CheckoutPage() {
             <Skeleton className="h-64" />
           ) : sub ? (
             <SubscribedPanel
+              plan={planKey.toBase58()}
               status={memberStatus(sub, now)}
               pays={formatUsdc(effectivePrice(sub, plan))}
               per={perInterval(plan.intervalSeconds.toNumber())}
@@ -114,6 +116,7 @@ export default function CheckoutPage() {
 }
 
 function SubscribedPanel({
+  plan,
   status,
   pays,
   per,
@@ -121,6 +124,7 @@ function SubscribedPanel({
   now,
   increase,
 }: {
+  plan: string;
   status: ReturnType<typeof memberStatus>;
   pays: string;
   per: string;
@@ -133,10 +137,7 @@ function SubscribedPanel({
       <Step n={1} title="Wallet connected" state="done" />
       <Step n={2} title="Subscribed" state="done" />
       <Step n={3} title="Join the community" state="current" last>
-        <p className="text-sm text-muted-foreground">
-          Group access through Telegram and Discord is being connected. Your subscription is active and will be linked
-          automatically.
-        </p>
+        <JoinTelegram plan={plan} />
       </Step>
       <div className="mt-6 space-y-3 border-t pt-5 text-sm">
         <div className="flex items-center justify-between">
