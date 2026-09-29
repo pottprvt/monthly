@@ -1,5 +1,7 @@
 import "server-only";
 
+import { storeConfigured } from "@/server/store";
+
 import type { ProviderId, ProviderInfo } from "./types";
 
 type Definition = Omit<ProviderInfo, "available"> & { requiredEnv: string[] };
@@ -11,8 +13,8 @@ const definitions: Record<ProviderId, Definition> = {
     name: "Telegram",
     target: "group",
     memberCta: "Join on Telegram",
-    setupSteps: ["Open the Monthly bot", "Pick your group and allow invites and removals", "Done: members join through the bot"],
-    requiredEnv: ["TELEGRAM_BOT_TOKEN", "TELEGRAM_BOT_USERNAME", "TELEGRAM_WEBHOOK_SECRET"],
+    setupSteps: ["Add the Monthly bot to your group", "Allow it to invite and remove members", "Members join through the bot"],
+    requiredEnv: ["TELEGRAM_BOT_TOKEN", "TELEGRAM_BOT_USERNAME", "TELEGRAM_WEBHOOK_SECRET", "SESSION_SECRET"],
   },
   discord: {
     id: "discord",
@@ -27,6 +29,6 @@ const definitions: Record<ProviderId, Definition> = {
 export function listProviders(): ProviderInfo[] {
   return Object.values(definitions).map(({ requiredEnv, ...info }) => ({
     ...info,
-    available: requiredEnv.every((key) => !!process.env[key]),
+    available: storeConfigured() && requiredEnv.every((key) => !!process.env[key]),
   }));
 }

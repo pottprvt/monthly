@@ -80,7 +80,7 @@ export default function CreatePage() {
                   Members get access while they pay and are removed when they stop.
                 </p>
               </div>
-              <CommunityConnections />
+              <CommunityConnections plan={created ?? undefined} />
               <div className="flex justify-end">
                 <Button onClick={() => setStep(2)}>
                   Continue <ArrowRightIcon data-icon="inline-end" />

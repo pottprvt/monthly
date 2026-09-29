@@ -5,6 +5,7 @@ import { MoreHorizontalIcon, ShieldIcon } from "lucide-react";
 import Link from "next/link";
 
 import { SlowBanner } from "@/components/common/slow-banner";
+import { JoinTelegram } from "@/components/checkout/join-telegram";
 import { StatusBadge } from "@/components/common/status-badge";
 import { PlanAvatar } from "@/components/plan/plan-avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { useAutoCollect } from "@/hooks/use-auto-collect";
 import { type Membership, useMemberData } from "@/hooks/use-member-data";
 import { useNow } from "@/hooks/use-now";
 import { useProgram } from "@/hooks/use-program";
+import { refreshAccess } from "@/hooks/use-telegram";
 import { useTx } from "@/hooks/use-tx";
 import {
   acceptPriceIx,
@@ -82,10 +84,16 @@ function SubscriptionList() {
               onAccept={() =>
                 run("accept", async () => [await acceptPriceIx(program, publicKey!, m.plan.publicKey, m.sub.publicKey)], "New price approved")
               }
-              onResume={() => run("resume", async () => [await resumeIx(program, publicKey!, m.plan, m.sub)], "Subscription resumed")}
+              onResume={() =>
+                void run("resume", async () => [await resumeIx(program, publicKey!, m.plan, m.sub)], "Subscription resumed").then(
+                  (ok) => ok && refreshAccess({ subscription: m.sub.publicKey.toBase58() }),
+                )
+              }
               onCancel={() => {
                 if (!confirm(`Cancel ${m.plan.account.name}? No further payments will be taken.`)) return;
-                void run("cancel", async () => [await cancelIx(program, publicKey!, m.plan.publicKey, m.sub.publicKey)], "Subscription cancelled");
+                void run("cancel", async () => [await cancelIx(program, publicKey!, m.plan.publicKey, m.sub.publicKey)], "Subscription cancelled").then(
+                  (ok) => ok && refreshAccess({ subscription: m.sub.publicKey.toBase58() }),
+                );
               }}
             />
           ))}
@@ -165,6 +173,12 @@ function MembershipRow({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {(status === "active" || status === "due") && (
+        <div className="pl-14">
+          <JoinTelegram plan={m.plan.publicKey.toBase58()} size="sm" />
+        </div>
+      )}
 
       {(status === "active" || status === "due") && (
         <div className="space-y-1.5 pl-14">
