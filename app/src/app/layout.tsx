@@ -21,21 +21,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="flex min-h-full flex-col">
         <Providers>
           <Nav />
-          <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
-          <footer className="border-t border-line py-4 text-center text-xs text-muted">
-            Program{" "}
-            <a
-              className="font-mono underline-offset-2 hover:underline"
-              href="https://explorer.solana.com/address/6F6a5BMjLyy7rXRcgZf9vwSqsVxJ34d1Xvov4gBsMhcQ?cluster=devnet"
-              target="_blank"
-              rel="noreferrer"
-            >
-              6F6a…MhcQ
-            </a>{" "}
-            on devnet ·{" "}
-            <a className="underline-offset-2 hover:underline" href="https://github.com/pottprvt/monthly" target="_blank" rel="noreferrer">
-              source
-            </a>
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">{children}</main>
+          <footer className="border-t border-line">
+            <div className="mx-auto flex max-w-6xl flex-wrap justify-between gap-2 px-4 py-5 text-xs text-muted">
+              <span>Monthly · recurring payments on Solana · devnet MVP</span>
+              <span className="flex gap-4">
+                <a
+                  className="hover:text-fg"
+                  href="https://explorer.solana.com/address/6F6a5BMjLyy7rXRcgZf9vwSqsVxJ34d1Xvov4gBsMhcQ?cluster=devnet"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Program on explorer
+                </a>
+                <a className="hover:text-fg" href="https://github.com/pottprvt/monthly" target="_blank" rel="noreferrer">
+                  Source on GitHub
+                </a>
+              </span>
+            </div>
           </footer>
         </Providers>
       </body>
