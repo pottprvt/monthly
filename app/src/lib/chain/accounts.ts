@@ -13,16 +13,8 @@ export type Plan = Keyed<PlanAccount>;
 export type Subscription = Keyed<SubscriptionAccount>;
 
 /** Account sizes (discriminator + INIT_SPACE). Accounts from older program versions have other sizes. */
-const PLAN_SIZE = 354;
-const SUBSCRIPTION_SIZE = 138;
-
-/** Solana's refundable storage deposit (rent exemption) for an account of `bytes` data. */
-const rentExemptLamports = (bytes: number) => (bytes + 128) * 6960;
-
-/** Deposit a creator locks when creating a plan; returned by delete_plan. */
-export const PLAN_DEPOSIT_LAMPORTS = rentExemptLamports(PLAN_SIZE);
-/** Deposit a member locks when subscribing; returned on cancel. */
-export const SUBSCRIPTION_DEPOSIT_LAMPORTS = rentExemptLamports(SUBSCRIPTION_SIZE);
+export const PLAN_SIZE = 354;
+export const SUBSCRIPTION_SIZE = 138;
 
 /** Plan ids are sequential per merchant (1..MAX_PLANS), so all plans load with one multi-account read. */
 export const MAX_PLANS = 64;
