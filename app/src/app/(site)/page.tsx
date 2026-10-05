@@ -28,7 +28,7 @@ const FEATURES = [
 
 const STEPS = [
   { title: "Create a plan", text: "Name, image and a monthly price." },
-  { title: "Connect your group", text: "Add the Monthly bot to Telegram or Discord." },
+  { title: "Connect your group", text: "Add the Monthly bot to your Telegram group." },
   { title: "Share your link", text: "Members subscribe and join in one flow." },
 ];
 
@@ -39,8 +39,7 @@ export default function Home() {
         <div>
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs text-muted-foreground">
             <ProviderIcon id="telegram" className="size-4" />
-            <ProviderIcon id="discord" className="size-4" />
-            For Telegram groups and Discord servers
+            For Telegram groups · Discord coming soon
           </div>
           <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-6xl">
             Get paid every month for your community.

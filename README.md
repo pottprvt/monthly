@@ -4,7 +4,11 @@ Get paid every month for your Telegram group. Members pay in USDC on Solana, pay
 
 Solana has no direct debit. Paid communities today run on credit cards (3 % fees, chargebacks, no wallet users) or on creators chasing members by hand. Monthly uses the token program's own delegate feature: a member approves a spending limit once, and from then on the Monthly program pulls the plan price when it is due. Nothing is prepaid; the money stays in the member's wallet until the day it is due.
 
-Built for the Superteam Germany "Road to Colosseum: Build your MVP" bounty and the Colosseum Crypto World's Fair hackathon (September–October 2026).
+Built for the Superteam Germany "Road to Colosseum: Build your MVP" bounty and the Colosseum Crypto World's Fair hackathon (September–October 2026). Demo video: https://youtu.be/xv91tHWNE2U
+
+| Landing page | Member checkout |
+|---|---|
+| ![Landing page](docs/screenshots/home.png) | ![Checkout](docs/screenshots/checkout.png) |
 
 ## Try it
 
@@ -169,3 +173,7 @@ app/src/integrations/          provider registry; Telegram Bot API client and bo
 app/src/server/                store (Redis), wallet sign-in, payment collection, access sync
 docs/INTEGRATIONS.md           design and security rules for community integrations
 ```
+
+## License
+
+MIT, see [LICENSE](LICENSE).
