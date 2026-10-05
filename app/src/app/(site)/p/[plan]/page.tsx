@@ -20,7 +20,7 @@ import { WalletButton } from "@/components/wallet/wallet-button";
 import { useAutoCollect } from "@/hooks/use-auto-collect";
 import { useCheckoutData } from "@/hooks/use-checkout-data";
 import { useNow } from "@/hooks/use-now";
-import { effectivePrice, memberStatus, pendingIncrease } from "@/lib/chain";
+import { effectivePrice, memberStatus, type MemberStatus, pendingIncrease } from "@/lib/chain";
 import { formatDateTime, formatUsdc, perInterval, shortAddress, timeUntil } from "@/lib/format";
 
 export default function CheckoutPage() {
@@ -98,7 +98,7 @@ function Checkout() {
           ) : sub ? (
             <SubscribedPanel
               plan={planKey.toBase58()}
-              status={memberStatus(sub, now)}
+              status={plan.active ? memberStatus(sub, now) : "closed"}
               pays={formatUsdc(effectivePrice(sub, plan))}
               per={perInterval(plan.intervalSeconds.toNumber())}
               next={sub.nextChargeAt.toNumber()}
@@ -136,7 +136,7 @@ function SubscribedPanel({
   increase,
 }: {
   plan: string;
-  status: ReturnType<typeof memberStatus>;
+  status: MemberStatus | "closed";
   pays: string;
   per: string;
   next: number;
@@ -147,8 +147,8 @@ function SubscribedPanel({
     <div>
       <Step n={1} title="Wallet connected" state="done" />
       <Step n={2} title="Subscribed" state="done" />
-      <Step n={3} title="Join the community" state="current" last>
-        <JoinTelegram plan={plan} />
+      <Step n={3} title="Join the community" state={status === "closed" ? "upcoming" : "current"} last>
+        {status !== "closed" && <JoinTelegram plan={plan} />}
       </Step>
       <div className="mt-6 space-y-3 border-t pt-5 text-sm">
         <div className="flex items-center justify-between">
@@ -161,7 +161,7 @@ function SubscribedPanel({
             {pays} USDC {per}
           </span>
         </div>
-        {status !== "paused" && (
+        {status !== "paused" && status !== "closed" && (
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Next payment</span>
             <span title={formatDateTime(next)}>{timeUntil(next, now)}</span>

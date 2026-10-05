@@ -16,21 +16,25 @@ const ACCESS: Record<string, { label: string; className: string }> = {
   revoked: { label: "Removed", className: "text-muted-foreground" },
 };
 
-/** Telegram access state per subscription for the given plans. */
+/** Telegram access state per subscription for the given plans, refreshed every 10 s (joins and removals happen in Telegram). */
 function useAccessStates(planKeys: string[]): Record<string, string> {
   const [states, setStates] = useState<Record<string, string>>({});
   const key = planKeys.join(",");
   useEffect(() => {
     let active = true;
-    Promise.all(
-      key.split(",").filter(Boolean).map((plan) =>
-        fetch(`/api/integrations/telegram/members?plan=${plan}`)
-          .then((r) => r.json() as Promise<Record<string, string>>)
-          .catch(() => ({})),
-      ),
-    ).then((maps) => active && setStates(Object.assign({}, ...maps)));
+    const load = () =>
+      Promise.all(
+        key.split(",").filter(Boolean).map((plan) =>
+          fetch(`/api/integrations/telegram/members?plan=${plan}`)
+            .then((r) => r.json() as Promise<Record<string, string>>)
+            .catch(() => ({})),
+        ),
+      ).then((maps) => active && setStates(Object.assign({}, ...maps)));
+    void load();
+    const timer = window.setInterval(() => void load(), 10_000);
     return () => {
       active = false;
+      window.clearInterval(timer);
     };
   }, [key]);
   return states;

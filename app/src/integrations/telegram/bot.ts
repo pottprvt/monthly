@@ -107,8 +107,12 @@ async function linkMember(code: Extract<LinkCode, { kind: "member" }>, user: Use
 
   const existing = await getGrant(code.subscription);
   if (existing && existing.userId === user.id && existing.state === "granted") {
-    await sendMessage(chatId, `You are already a member of ${conn.title}.`);
-    return;
+    // Still in the group: nothing to do. Left on their own: send the link again.
+    const member = await tg<ChatMember>("getChatMember", { chat_id: conn.chatId, user_id: user.id }).catch(() => null);
+    if (member && member.status !== "left" && member.status !== "kicked") {
+      await sendMessage(chatId, `You are already a member of ${conn.title}.`);
+      return;
+    }
   }
   if (existing && existing.userId !== user.id && existing.state !== "revoked") {
     if (existing.state === "granted") await removeMember(conn.chatId, existing.userId);
@@ -142,12 +146,13 @@ async function connectGroup(code: Extract<LinkCode, { kind: "connect" }>, chat: 
     return;
   }
 
-  // A plan address reused after a delete must not inherit the old plan's members.
+  // Grants belong to a group: a plan address reused after a delete, or a plan moved to another
+  // group, must not inherit the old members' access state.
   const [previous, planAccount] = await Promise.all([
     getTelegramConnection(code.plan),
     fetchPlan(program(), new PublicKey(code.plan)),
   ]);
-  if (previous && planAccount && !connectionIsCurrent(previous, planAccount.createdAt.toNumber())) {
+  if (previous && (previous.chatId !== chat.id || (planAccount && !connectionIsCurrent(previous, planAccount.createdAt.toNumber())))) {
     await clearGrants(code.plan);
   }
 

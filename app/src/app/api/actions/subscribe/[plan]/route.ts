@@ -70,7 +70,7 @@ export async function GET(req: Request, ctx: Ctx) {
 export async function POST(req: Request, ctx: Ctx) {
   const planKey = parseKey((await ctx.params).plan);
   if (!planKey) return json({ message: "invalid plan address" }, 400);
-  const payments = Math.min(120, Math.max(1, Number(new URL(req.url).searchParams.get("payments") ?? 12) || 12));
+  const payments = Math.min(120, Math.max(1, Math.floor(Number(new URL(req.url).searchParams.get("payments") ?? 12) || 12)));
   const body = (await req.json().catch(() => null)) as ActionPostRequest | null;
   const account = parseKey(body?.account ?? "");
   if (!account) return json({ message: "invalid account" }, 400);

@@ -19,7 +19,8 @@ export async function POST(req: Request) {
   if (!validSecret(req.headers.get("x-telegram-bot-api-secret-token"))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const update = (await req.json()) as Update;
+  const update = (await req.json().catch(() => null)) as Update | null;
+  if (!update) return NextResponse.json({ error: "bad request" }, { status: 400 });
   try {
     await handleUpdate(update, new URL(req.url).origin);
   } catch (err) {

@@ -48,18 +48,25 @@ export function useTelegramStatus(plan: string | null, watch = false) {
 
 export type MemberAccess = "pending" | "granted" | "revoked" | null;
 
-/** The signed-in member's own access state for a plan (null when unknown or not linked yet). */
+/**
+ * The signed-in member's own access state for a plan (null when unknown or not linked yet).
+ * Polled every few seconds, because the state changes in Telegram, not on this page.
+ */
 export function useMemberAccess(plan: string | null, enabled: boolean): MemberAccess {
   const [state, setState] = useState<MemberAccess>(null);
   useEffect(() => {
     if (!plan || !enabled) return;
     let active = true;
-    fetch(`/api/integrations/telegram/me?plan=${plan}`)
-      .then((r) => r.json() as Promise<{ state: MemberAccess }>)
-      .then((d) => active && setState(d.state))
-      .catch(() => undefined);
+    const load = () =>
+      fetch(`/api/integrations/telegram/me?plan=${plan}`)
+        .then((r) => r.json() as Promise<{ state: MemberAccess }>)
+        .then((d) => active && setState(d.state))
+        .catch(() => undefined);
+    void load();
+    const timer = window.setInterval(() => void load(), 5_000);
     return () => {
       active = false;
+      window.clearInterval(timer);
     };
   }, [plan, enabled]);
   return state;

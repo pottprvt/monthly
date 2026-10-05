@@ -14,16 +14,17 @@ export function TelegramConnect({ plan }: { plan: string }) {
   const [link, setLink] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const status = useTelegramStatus(plan, link !== null);
+  const pending = link !== null && status.status !== "connected";
 
   // One-time connect codes expire after 10 minutes; offer a fresh link instead of waiting forever.
   useEffect(() => {
-    if (!link) return;
+    if (!pending) return;
     const timer = window.setTimeout(() => {
       setLink(null);
       toast.message("The connect link expired. Create a new one.");
     }, 10 * 60_000);
     return () => window.clearTimeout(timer);
-  }, [link]);
+  }, [pending]);
 
   async function start() {
     setBusy(true);
@@ -78,6 +79,10 @@ export function TelegramConnect({ plan }: { plan: string }) {
           <a href={link} target="_blank" rel="noopener" className={buttonVariants({ variant: "outline", size: "sm" })}>
             Open Telegram <ExternalLinkIcon />
           </a>
+          {/* The bot may have refused (not an admin, missing rights); a new code is the way out. */}
+          <Button variant="ghost" size="sm" onClick={() => setLink(null)}>
+            Start over
+          </Button>
         </div>
       ) : (
         <Button onClick={start} disabled={busy}>

@@ -1,6 +1,9 @@
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
+import { clientIp, sameOrigin } from "@/server/auth/request";
+import { allow, storeConfigured } from "@/server/store";
+
 const MAX_BYTES = 1024 * 1024;
 const TYPES: Record<string, string> = {
   "image/png": "png",
@@ -13,6 +16,10 @@ const TYPES: Record<string, string> = {
 export async function POST(req: Request) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return NextResponse.json({ error: "Image upload is not configured yet" }, { status: 503 });
+  }
+  if (!sameOrigin(req)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (storeConfigured() && !(await allow(`upload:ip:${clientIp(req)}`, 10, 3600))) {
+    return NextResponse.json({ error: "Upload limit reached, try again later" }, { status: 429 });
   }
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");

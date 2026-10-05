@@ -56,7 +56,8 @@ function Overview() {
     );
   }
 
-  const statuses = subs.map((s) => memberStatus(s.account, now));
+  const statuses = subs.filter((s) => activePlans.has(s.account.plan.toBase58())).map((s) => memberStatus(s.account, now));
+  const firstActive = plans.find((p) => p.account.active) ?? plans[0];
   const collected = plans.reduce((sum, p) => sum + BigInt(p.account.totalCollected.toString()), 0n);
 
   return (
@@ -68,8 +69,8 @@ function Overview() {
         <SetupChecklist
           items={[
             { label: "Create a plan", done: true },
-            { label: "Connect your Telegram group", done: false, href: `/dashboard/plans/${plans[0].publicKey.toBase58()}` },
-            { label: "Share your link and get your first member", done: false, href: `/dashboard/plans/${plans[0].publicKey.toBase58()}` },
+            { label: "Connect your Telegram group", done: false, href: `/dashboard/plans/${firstActive.publicKey.toBase58()}` },
+            { label: "Share your link and get your first member", done: false, href: `/dashboard/plans/${firstActive.publicKey.toBase58()}` },
           ]}
         />
       )}
